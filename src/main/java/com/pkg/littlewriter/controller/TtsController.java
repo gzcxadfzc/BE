@@ -1,6 +1,5 @@
 package com.pkg.littlewriter.controller;
 
-import com.pkg.littlewriter.dto.ResponseDTO;
 import com.pkg.littlewriter.utils.tts.NaverTtsRequestBodyDto;
 import com.pkg.littlewriter.utils.tts.NaverTtsResponseDto;
 import com.pkg.littlewriter.utils.tts.NaverTtsService;

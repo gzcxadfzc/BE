@@ -22,12 +22,6 @@ import java.util.concurrent.CompletableFuture;
 @Component
 public class AsyncGenerativeAiService {
     @Autowired
-    private KeywordExtractor keywordExtractor;
-    @Autowired
-    private KeywordToImageGenerator keywordToImageGenerator;
-    @Autowired
-    private ContextAndQuestionGenerator contextAndQuestionGenerator;
-    @Autowired
     private EnrichContextAndQuestionGenerator enrichContextAndQuestionGenerator;
     @Autowired
     private ContextKeyWordExtractor contextKeyWordExtractor;
@@ -40,9 +34,6 @@ public class AsyncGenerativeAiService {
 
     @Autowired
     private DalleImageGenerator dalleImageGenerator;
-
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-
 
     @Async
     public CompletableFuture<RefineContextAndQuestionDTO> asyncEnrichContextWithQuestion(BookInProgress bookInProgress) throws OpenAiException {
@@ -102,35 +93,5 @@ public class AsyncGenerativeAiService {
                 .build();
         ImageResponse processingImageResponse = stableDiffusion.generateFromImageCanny(imageToImageRequest);
         return CompletableFuture.completedFuture(new SketchAndProcessingImage(sketchImageResponse.getMessage(), processingImageResponse));
-    }
-
-    @Async
-    public CompletableFuture<ContextAndQuestion> asyncGenerateContextWithQuestion(BookInProgressJsonable bookInProgressJsonable) throws JsonProcessingException {
-        UserInputCharacterDTO characterDTO = UserInputCharacterDTO.builder()
-                .name(bookInProgressJsonable.getMainCharacter().getName())
-                .personality(bookInProgressJsonable.getMainCharacter().getPersonality())
-                .build();
-        UserInputJsonable userInputJsonable = UserInputJsonable.builder()
-                .previousContext("")
-                .currentContext(bookInProgressJsonable.getCurrentContext())
-                .character(characterDTO)
-                .build();
-        String response = contextAndQuestionGenerator.getResponse(userInputJsonable).getMessage();
-        System.out.println(response);
-        ContextAndQuestion contextAndQuestion = MAPPER.readValue(response, ContextAndQuestion.class);
-        return CompletableFuture.completedFuture(contextAndQuestion);
-    }
-
-    @Async
-    public CompletableFuture<GeneratedImage> asyncGenerateDalleImage(BookInProgressJsonable bookInProgressJsonable) throws JsonProcessingException {
-        DepictInfoJsonable depictInfoJsonable = DepictInfoJsonable
-                .builder()
-                .backgroundInfo(bookInProgressJsonable.getBackgroundInfo())
-                .currentContext(bookInProgressJsonable.getCurrentContext())
-                .build();
-        String keywords = keywordExtractor.getResponse(depictInfoJsonable).getMessage();
-        ImageKeywordJsonable imageKeywordJsonable = new ImageKeywordJsonable(keywords);
-        String imagUrl = keywordToImageGenerator.getResponse(imageKeywordJsonable).getMessage();
-        return CompletableFuture.completedFuture(GeneratedImage.builder().imageUrl(imagUrl).build());
     }
 }
