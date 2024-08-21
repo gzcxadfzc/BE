@@ -220,7 +220,6 @@ public class BookController {
             bookInProgressRedisService.put(bookInProgressRedis);
             BookInsightResponseDTO bookInitResponseDTO = BookInsightResponseDTO.builder()
                     .bookInsight(new BookInsightSketchDTO(bookInsightDTO))
-//                    .createdPages(bookInProgressRedis.getPreviousPages())
                     .storyLength(bookInProgressRedis.getStoryLength())
                     .build();
             ResponseDTO<BookInsightResponseDTO> responseDTO = ResponseDTO.<BookInsightResponseDTO>builder()

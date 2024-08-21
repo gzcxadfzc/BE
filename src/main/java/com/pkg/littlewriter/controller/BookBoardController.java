@@ -72,7 +72,6 @@ public class BookBoardController {
     @GetMapping("/my")
     public ResponseEntity<?> getBook(@AuthenticationPrincipal CustomUserDetails customUserDetails, @PageableDefault(size=9, sort="createDate",direction= Sort.Direction.DESC) Pageable pageable) {
         Page<BookEntity> pageBook = bookService.getAllByUserId(customUserDetails.getId(), pageable);
-//        List<BookEntity> bookEntity = bookService.getAllByUserId(customUserDetails.getId());
         List<BookEntity> bookEntity = pageBook.getContent();
         List<BookCoverDTO> bookCoverDTOs = bookEntity.stream()
                 .map(book -> BookCoverDTO.builder()
