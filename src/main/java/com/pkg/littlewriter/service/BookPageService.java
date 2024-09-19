@@ -1,6 +1,6 @@
 package com.pkg.littlewriter.service;
 
-import com.pkg.littlewriter.domain.model.PageEntity;
+import com.pkg.littlewriter.persistence.PageEntity;
 import com.pkg.littlewriter.persistence.PageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
