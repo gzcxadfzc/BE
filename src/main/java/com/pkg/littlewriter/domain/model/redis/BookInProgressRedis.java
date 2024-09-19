@@ -1,6 +1,5 @@
 package com.pkg.littlewriter.domain.model.redis;
 
-import com.pkg.littlewriter.dto.PageDTO;
 import lombok.*;
 
 import java.util.List;

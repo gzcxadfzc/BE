@@ -2,7 +2,6 @@ package com.pkg.littlewriter.service.redis;
 
 
 import com.pkg.littlewriter.domain.model.redis.BookInProgressRedis;
-import com.pkg.littlewriter.dto.PageDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
