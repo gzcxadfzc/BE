@@ -15,4 +15,4 @@ import java.util.List;
 public class BookInsightDalleDTO {
     private List<String> generatedQuestions;
     private String imageUrl;
-    private String refinedContext;}
+    private String refinedContext;
