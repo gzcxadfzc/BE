@@ -1,4 +1,4 @@
-package com.pkg.littlewriter.domain.ai.response;
+package com.pkg.littlewriter.domain.external.ai.response;
 
 import lombok.Getter;
 

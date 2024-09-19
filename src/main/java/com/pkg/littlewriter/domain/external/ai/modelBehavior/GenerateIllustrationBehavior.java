@@ -1,8 +1,8 @@
-package com.pkg.littlewriter.domain.ai.modelBehavior;
+package com.pkg.littlewriter.domain.external.ai.modelBehavior;
 
-import com.pkg.littlewriter.domain.ai.commons.OpenAiModelEnum;
-import com.pkg.littlewriter.domain.ai.input.GenerateImageInputDto;
-import com.pkg.littlewriter.domain.ai.response.GenerateImageResponseDto;
+import com.pkg.littlewriter.domain.external.ai.commons.OpenAiModelEnum;
+import com.pkg.littlewriter.domain.external.ai.input.GenerateImageInputDto;
+import com.pkg.littlewriter.domain.external.ai.response.GenerateImageResponseDto;
 import com.theokanning.openai.image.CreateImageRequest;
 import com.theokanning.openai.service.OpenAiService;
 import org.springframework.beans.factory.annotation.Autowired;

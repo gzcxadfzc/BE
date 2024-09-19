@@ -1,8 +1,8 @@
-package com.pkg.littlewriter.domain.ai;
+package com.pkg.littlewriter.domain.external.ai;
 
-import com.pkg.littlewriter.domain.ai.input.GenerateContextQuestionInputDto;
-import com.pkg.littlewriter.domain.ai.modelBehavior.AiModelBehavior;
-import com.pkg.littlewriter.domain.ai.response.GenerateContextQuestionResponseDto;
+import com.pkg.littlewriter.domain.external.ai.input.GenerateContextQuestionInputDto;
+import com.pkg.littlewriter.domain.external.ai.modelBehavior.AiModelBehavior;
+import com.pkg.littlewriter.domain.external.ai.response.GenerateContextQuestionResponseDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

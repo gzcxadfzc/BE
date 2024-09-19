@@ -1,11 +1,12 @@
-package com.pkg.littlewriter.domain.ai.modelBehavior;
+package com.pkg.littlewriter.domain.external.ai.modelBehavior;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.pkg.littlewriter.domain.ai.commons.OpenAiModelEnum;
-import com.pkg.littlewriter.domain.ai.exceptions.*;
-import com.pkg.littlewriter.domain.ai.input.GenerateContextQuestionInputDto;
-import com.pkg.littlewriter.domain.ai.response.GenerateContextQuestionResponseDto;
-import com.pkg.littlewriter.domain.ai.commons.Jsonable;
+import com.pkg.littlewriter.domain.external.ai.commons.OpenAiModelEnum;
+import com.pkg.littlewriter.domain.external.ai.input.GenerateContextQuestionInputDto;
+import com.pkg.littlewriter.domain.external.ai.response.GenerateContextQuestionResponseDto;
+import com.pkg.littlewriter.domain.external.ai.commons.Jsonable;
+import com.pkg.littlewriter.domain.external.ai.exceptions.AiException;
+import com.pkg.littlewriter.domain.external.ai.exceptions.AiIllegalFormatResponseException;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.service.OpenAiService;

@@ -1,4 +1,4 @@
-package com.pkg.littlewriter.domain.ai.commons;
+package com.pkg.littlewriter.domain.external.ai.commons;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

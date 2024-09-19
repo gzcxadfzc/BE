@@ -1,4 +1,4 @@
-package com.pkg.littlewriter.domain.ai.commons;
+package com.pkg.littlewriter.domain.external.ai.commons;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
