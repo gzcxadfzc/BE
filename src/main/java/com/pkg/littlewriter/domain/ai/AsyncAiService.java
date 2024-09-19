@@ -1,12 +1,10 @@
 package com.pkg.littlewriter.domain.ai;
 
-import com.pkg.littlewriter.domain.ai.commons.Jsonable;
 import com.pkg.littlewriter.domain.ai.exceptions.AiException;
-import com.pkg.littlewriter.domain.ai.input.AiJsonInput;
-import com.pkg.littlewriter.domain.ai.input.AiTextInput;
-import com.pkg.littlewriter.domain.ai.response.AiImageResponse;
-import com.pkg.littlewriter.domain.ai.response.AiJsonResponse;
-import com.pkg.littlewriter.domain.ai.response.ContextAndQuestionDto;
+import com.pkg.littlewriter.domain.ai.input.GenerateContextQuestionInputDto;
+import com.pkg.littlewriter.domain.ai.input.GenerateImageInputDto;
+import com.pkg.littlewriter.domain.ai.response.GenerateContextQuestionResponseDto;
+import com.pkg.littlewriter.domain.ai.response.GenerateImageResponseDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -25,12 +23,12 @@ public class AsyncAiService {
     }
 
     @Async
-    public CompletableFuture<AiImageResponse> asyncGenerateImageFrom(Jsonable<?> jsonable) throws AiException {
-        return CompletableFuture.completedFuture(aiImageGenerator.getResponseFrom(new AiTextInput(jsonable.getJsonString())));
+    public CompletableFuture<GenerateImageResponseDto> asyncGenerateImageFrom(GenerateImageInputDto generateImageInputDto) throws AiException {
+        return CompletableFuture.completedFuture(aiImageGenerator.getResponseFrom(generateImageInputDto));
     }
 
     @Async
-    public CompletableFuture<AiJsonResponse<ContextAndQuestionDto>> asyncGenerateContextAndQuestionFrom(Jsonable<?> jsonable) throws AiException {
-        return CompletableFuture.completedFuture(contextQuestionGenerator.getResponseFrom(new AiJsonInput<>(jsonable)));
+    public CompletableFuture<GenerateContextQuestionResponseDto> asyncGenerateContextAndQuestionFrom(GenerateContextQuestionInputDto contextQuestionInputDto) throws AiException {
+        return CompletableFuture.completedFuture(contextQuestionGenerator.getResponseFrom(contextQuestionInputDto));
     }
 }

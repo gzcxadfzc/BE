@@ -2,12 +2,9 @@ package com.pkg.littlewriter.domain.ai.modelBehavior;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.pkg.littlewriter.domain.ai.commons.OpenAiModelEnum;
-import com.pkg.littlewriter.domain.ai.exceptions.AiException;
-import com.pkg.littlewriter.domain.ai.exceptions.AiIllegalFormatResponseException;
-import com.pkg.littlewriter.domain.ai.input.AiJsonInput;
-import com.pkg.littlewriter.domain.ai.response.AiJsonResponse;
-import com.pkg.littlewriter.domain.ai.response.ContextAndQuestionDto;
-import com.pkg.littlewriter.domain.ai.input.AiTextInput;
+import com.pkg.littlewriter.domain.ai.exceptions.*;
+import com.pkg.littlewriter.domain.ai.input.GenerateContextQuestionInputDto;
+import com.pkg.littlewriter.domain.ai.response.GenerateContextQuestionResponseDto;
 import com.pkg.littlewriter.domain.ai.commons.Jsonable;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatMessage;
@@ -18,7 +15,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
-public class GenerateContextBehavior implements AiModelBehavior<AiJsonInput<?>, AiJsonResponse<ContextAndQuestionDto>>{
+public class GenerateContextBehavior implements AiModelBehavior<GenerateContextQuestionInputDto, GenerateContextQuestionResponseDto> {
     private final OpenAiService openAiService;
 
     private static final ChatMessage SYSTEM_MESSAGE = new ChatMessage("system",
@@ -45,23 +42,27 @@ public class GenerateContextBehavior implements AiModelBehavior<AiJsonInput<?>, 
     }
 
     @Override
-    public AiJsonResponse<ContextAndQuestionDto> getResponseFrom(AiJsonInput<?> aiInput) throws AiException {
-        ChatMessage fairyTaleInfo = new ChatMessage("user", aiInput.getJsonString());
+    public GenerateContextQuestionResponseDto getResponseFrom(GenerateContextQuestionInputDto aiInput) throws AiException {
+        try {
+            Jsonable<GenerateContextQuestionInputDto> inputJsonable = new Jsonable<>(aiInput);
+            ChatMessage response = getChatMessage(inputJsonable);
+            return new Jsonable<>(response.getContent(), GenerateContextQuestionResponseDto.class).getData();
+        } catch (JsonProcessingException e) {
+            throw new AiIllegalFormatResponseException(e.getMessage());
+        }
+    }
+
+    private ChatMessage getChatMessage(Jsonable<GenerateContextQuestionInputDto> inputJsonable) {
+        ChatMessage fairyTaleInfo = new ChatMessage("user", inputJsonable.getJsonString());
         ChatCompletionRequest request = ChatCompletionRequest.builder()
                 .model(OpenAiModelEnum.GPT_4_TURBO_PREVIEW.getName())
                 .messages(List.of(SYSTEM_MESSAGE, fairyTaleInfo))
                 .temperature(0.5)
                 .maxTokens(500)
                 .build();
-        ChatMessage response = openAiService.createChatCompletion(request)
+        return openAiService.createChatCompletion(request)
                 .getChoices()
                 .get(0)
                 .getMessage();
-        try {
-            Jsonable<ContextAndQuestionDto> contextAndQuestionJsonable =  new Jsonable<>(response.getContent(), ContextAndQuestionDto.class);
-            return new AiJsonResponse<>(contextAndQuestionJsonable);
-        } catch (JsonProcessingException e) {
-            throw new AiIllegalFormatResponseException(e.getMessage() + " ai generated answer with wrong format");
-        }
     }
 }

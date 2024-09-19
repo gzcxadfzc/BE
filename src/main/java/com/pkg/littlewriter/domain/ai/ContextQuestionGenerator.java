@@ -1,18 +1,15 @@
 package com.pkg.littlewriter.domain.ai;
 
-import com.pkg.littlewriter.domain.ai.input.AiJsonInput;
-import com.pkg.littlewriter.domain.ai.input.AiTextInput;
+import com.pkg.littlewriter.domain.ai.input.GenerateContextQuestionInputDto;
 import com.pkg.littlewriter.domain.ai.modelBehavior.AiModelBehavior;
-import com.pkg.littlewriter.domain.ai.response.AiJsonResponse;
-import com.pkg.littlewriter.domain.ai.response.ContextAndQuestionDto;
-import com.pkg.littlewriter.domain.ai.commons.Jsonable;
+import com.pkg.littlewriter.domain.ai.response.GenerateContextQuestionResponseDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ContextQuestionGenerator extends Ai<AiJsonInput<?>, AiJsonResponse<ContextAndQuestionDto>> {
+public class ContextQuestionGenerator extends Ai<GenerateContextQuestionInputDto, GenerateContextQuestionResponseDto> {
     @Autowired
-    protected ContextQuestionGenerator(AiModelBehavior<AiJsonInput<?>, AiJsonResponse<ContextAndQuestionDto>> generateContextBehavior) {
+    protected ContextQuestionGenerator(AiModelBehavior<GenerateContextQuestionInputDto, GenerateContextQuestionResponseDto> generateContextBehavior) {
         super(generateContextBehavior);
     }
 }

@@ -1,15 +1,15 @@
 package com.pkg.littlewriter.domain.ai.modelBehavior;
 
 import com.pkg.littlewriter.domain.ai.commons.OpenAiModelEnum;
-import com.pkg.littlewriter.domain.ai.input.AiTextInput;
-import com.pkg.littlewriter.domain.ai.response.AiImageResponse;
+import com.pkg.littlewriter.domain.ai.input.GenerateImageInputDto;
+import com.pkg.littlewriter.domain.ai.response.GenerateImageResponseDto;
 import com.theokanning.openai.image.CreateImageRequest;
 import com.theokanning.openai.service.OpenAiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class GenerateIllustrationBehavior implements AiModelBehavior<AiTextInput, AiImageResponse> {
+public class GenerateIllustrationBehavior implements AiModelBehavior<GenerateImageInputDto, GenerateImageResponseDto> {
     private final OpenAiService openAiService;
 
     @Autowired
@@ -18,18 +18,22 @@ public class GenerateIllustrationBehavior implements AiModelBehavior<AiTextInput
     }
 
     @Override
-    public AiImageResponse getResponseFrom(AiTextInput aiInput) {
+    public GenerateImageResponseDto getResponseFrom(GenerateImageInputDto generateImageInputDto) {
+        String url = generateImageUrl(generateImageInputDto);
+        return new GenerateImageResponseDto(url);
+    }
+
+    private String generateImageUrl(GenerateImageInputDto aiInput) {
         CreateImageRequest request = CreateImageRequest.builder()
                 .model(OpenAiModelEnum.DALL_E_2.getName())
                 .quality("standard")
                 .size("512x512")
-                .prompt(aiInput.getInputText())
+                .prompt(aiInput.getContext())
                 .n(1)
                 .build();
-        String resultImageUrl = openAiService.createImage(request)
+        return openAiService.createImage(request)
                 .getData()
                 .get(0)
                 .getUrl();
-        return new AiImageResponse(resultImageUrl);
     }
 }
