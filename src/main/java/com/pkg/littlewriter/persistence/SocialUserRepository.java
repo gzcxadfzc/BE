@@ -1,5 +1,6 @@
 package com.pkg.littlewriter.persistence;
 
+import com.pkg.littlewriter.domain.model.SocialMemberEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

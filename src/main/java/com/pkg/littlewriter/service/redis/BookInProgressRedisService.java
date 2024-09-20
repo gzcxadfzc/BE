@@ -1,12 +1,13 @@
 package com.pkg.littlewriter.service.redis;
 
 
-import com.pkg.littlewriter.persistence.redis.BookInProgressRedis;
+import com.pkg.littlewriter.domain.model.redis.BookInProgressRedis;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -36,6 +37,13 @@ public class BookInProgressRedisService {
         BookInProgressRedis deletedBookInProgressRedis = getByUserId(userId);
         hashOperations.delete(KEY, String.valueOf(userId));
         return deletedBookInProgressRedis;
+    }
+
+    public BookInProgressRedis appendPageTo(Long userId, PageDTO pageDTO) {
+        BookInProgressRedis previous = getByUserId(userId);
+        List<PageDTO> pages = previous.getPreviousPages();
+        pages.add(pageDTO);
+        return update(previous);
     }
 
     public BookInProgressRedis update(BookInProgressRedis bookInProgressRedis) {
