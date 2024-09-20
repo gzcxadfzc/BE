@@ -7,6 +7,7 @@ import com.pkg.littlewriter.external.ai.exceptions.AiIllegalFormatResponseExcept
 import com.pkg.littlewriter.external.ai.input.GenerateContextQuestionInputDto;
 import com.pkg.littlewriter.external.ai.response.GenerateContextQuestionResponseDto;
 import com.pkg.littlewriter.external.ai.commons.Jsonable;
+
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.service.OpenAiService;
