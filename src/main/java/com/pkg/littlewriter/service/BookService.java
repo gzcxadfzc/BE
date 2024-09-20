@@ -1,7 +1,6 @@
 package com.pkg.littlewriter.service;
 
-import com.pkg.littlewriter.domain.model.BookEntity;
-import com.pkg.littlewriter.dto.WordQuestionDTO;
+import com.pkg.littlewriter.persistence.BookEntity;
 import com.pkg.littlewriter.persistence.BookPageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
