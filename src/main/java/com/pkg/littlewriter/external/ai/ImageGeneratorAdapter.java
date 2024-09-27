@@ -4,9 +4,9 @@ import com.pkg.littlewriter.domain.bookProgressHelper.exceptions.BookProgressExc
 import com.pkg.littlewriter.domain.bookProgressHelper.imageGenerator.ImageGenerator;
 import com.pkg.littlewriter.domain.bookProgressHelper.model.BookToProgress;
 import com.pkg.littlewriter.domain.bookProgressHelper.model.Illustration;
-import com.pkg.littlewriter.domain.bookProgressHelper.model.NextContext;
 import com.pkg.littlewriter.external.ai.exceptions.AiException;
 import com.pkg.littlewriter.external.ai.input.GenerateImageInputDto;
+import com.pkg.littlewriter.external.ai.mapper.BookToProgressMapper;
 import com.pkg.littlewriter.external.ai.response.GenerateImageResponseDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -14,17 +14,18 @@ import org.springframework.stereotype.Component;
 @Component
 public class ImageGeneratorAdapter implements ImageGenerator {
     private final AiImageGenerator aiImageGenerator;
+    private final BookToProgressMapper mapper;
 
     @Autowired
-    public ImageGeneratorAdapter(AiImageGenerator aiImageGenerator) {
+    public ImageGeneratorAdapter(AiImageGenerator aiImageGenerator, BookToProgressMapper mapper) {
         this.aiImageGenerator = aiImageGenerator;
+        this.mapper = mapper;
     }
 
     @Override
     public Illustration generateFrom(BookToProgress bookToProgress) throws BookProgressException {
-        NextContext nextContext = bookToProgress.getNextContext();
+        GenerateImageInputDto generateImageInputDto = mapper.toGenerateImageInputDto(bookToProgress);
         try {
-            GenerateImageInputDto generateImageInputDto = new GenerateImageInputDto(nextContext.getContext());
             GenerateImageResponseDto responseDto = aiImageGenerator.getResponseFrom(generateImageInputDto);
             return new Illustration(responseDto.getImageUrl());
         } catch (AiException e) {
