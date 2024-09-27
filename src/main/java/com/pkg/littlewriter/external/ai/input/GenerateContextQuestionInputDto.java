@@ -1,11 +1,14 @@
 package com.pkg.littlewriter.external.ai.input;
 
-import lombok.Builder;
+import lombok.*;
 
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class GenerateContextQuestionInputDto {
-    private final String previousContext;
-    private final String currentContext;
-    private final String mainCharacterName;
-    private final String personality;
+    private String previousContext;
+    private String currentContext;
+    private String mainCharacterName;
+    private String personality;
 }

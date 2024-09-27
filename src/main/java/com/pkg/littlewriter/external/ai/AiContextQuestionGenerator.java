@@ -8,9 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ContextQuestionGenerator extends Ai<GenerateContextQuestionInputDto, GenerateContextQuestionResponseDto>{
+public class AiContextQuestionGenerator extends Ai<GenerateContextQuestionInputDto, GenerateContextQuestionResponseDto>{
     @Autowired
-    protected ContextQuestionGenerator(AiModelBehavior<GenerateContextQuestionInputDto, GenerateContextQuestionResponseDto> generateContextBehavior) {
+    protected AiContextQuestionGenerator(AiModelBehavior<GenerateContextQuestionInputDto, GenerateContextQuestionResponseDto> generateContextBehavior) {
         super(generateContextBehavior);
     }
 

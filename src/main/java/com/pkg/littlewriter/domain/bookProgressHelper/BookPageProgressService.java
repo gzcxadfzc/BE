@@ -18,10 +18,10 @@ public class BookPageProgressService implements BookPageProgressHelper {
     }
 
     @Override
-    public BookPage continueStory(BookProgressDetails bookProgressDetails) throws BookProgressException {
+    public BookPage continueStory(BookToProgress bookToProgress) throws BookProgressException {
         try {
-            CompletableFuture<Illustration> illustrationCompletableFuture = asyncBookPageHelper.asyncGenerateIllustrationFrom(bookProgressDetails);
-            CompletableFuture<ContextAndQuestion> contextAndQuestionCompletableFuture = asyncBookPageHelper.asyncGenerateContextAndQuestionFrom(bookProgressDetails);
+            CompletableFuture<Illustration> illustrationCompletableFuture = asyncBookPageHelper.asyncGenerateIllustrationFrom(bookToProgress);
+            CompletableFuture<ContextAndQuestion> contextAndQuestionCompletableFuture = asyncBookPageHelper.asyncGenerateContextAndQuestionFrom(bookToProgress);
             return illustrationCompletableFuture.thenCombine(contextAndQuestionCompletableFuture, this::createBookPage).get();
         } catch (InterruptedException | ExecutionException e) {
             throw new BookProgressException(e.getMessage());

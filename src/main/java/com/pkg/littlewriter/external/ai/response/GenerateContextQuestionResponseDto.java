@@ -1,16 +1,14 @@
 package com.pkg.littlewriter.external.ai.response;
 
-import lombok.Getter;
+import lombok.*;
 
 import java.util.List;
 
 @Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class GenerateContextQuestionResponseDto {
-    private final String refinedText;
-    private final List<String> questions;
-
-    public GenerateContextQuestionResponseDto(String refinedText, List<String> questions) {
-        this.refinedText = refinedText;
-        this.questions = questions;
-    }
+    private String refinedText;
+    private List<String> questions;
 }

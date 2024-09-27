@@ -8,6 +8,7 @@ import com.pkg.littlewriter.external.ai.input.GenerateContextQuestionInputDto;
 import com.pkg.littlewriter.external.ai.response.GenerateContextQuestionResponseDto;
 import com.pkg.littlewriter.external.ai.commons.Jsonable;
 
+import com.theokanning.openai.completion.chat.ChatCompletionChoice;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.service.OpenAiService;
@@ -48,7 +49,8 @@ public class GenerateContextBehavior implements AiModelBehavior<GenerateContextQ
         try {
             Jsonable<GenerateContextQuestionInputDto> inputJsonable = new Jsonable<>(aiInput);
             ChatMessage response = getChatMessage(inputJsonable);
-            return new Jsonable<>(response.getContent(), GenerateContextQuestionResponseDto.class).getData();
+            Jsonable<GenerateContextQuestionResponseDto> responseJsonable = new Jsonable<>(response.getContent(), GenerateContextQuestionResponseDto.class);
+            return responseJsonable.getData();
         } catch (JsonProcessingException e) {
             throw new AiIllegalFormatResponseException(e.getMessage());
         }
@@ -62,9 +64,9 @@ public class GenerateContextBehavior implements AiModelBehavior<GenerateContextQ
                 .temperature(0.5)
                 .maxTokens(500)
                 .build();
-        return openAiService.createChatCompletion(request)
+        ChatCompletionChoice choice =  openAiService.createChatCompletion(request)
                 .getChoices()
-                .get(0)
-                .getMessage();
+                .get(0);
+        return choice.getMessage();
     }
 }

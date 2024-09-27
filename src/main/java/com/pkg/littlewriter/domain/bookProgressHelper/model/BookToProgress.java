@@ -5,7 +5,7 @@ import lombok.Getter;
 
 @Getter
 @Builder
-public class BookProgressDetails {
+public class BookToProgress {
     private final NextContext nextContext;
     private final BookInProgress bookInProgress;
 }

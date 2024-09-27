@@ -3,7 +3,7 @@ package com.pkg.littlewriter.domain.bookProgressHelper;
 import com.pkg.littlewriter.domain.bookProgressHelper.contextAndQuestionGenerator.ContextAndQuestionGenerator;
 import com.pkg.littlewriter.domain.bookProgressHelper.exceptions.BookProgressException;
 import com.pkg.littlewriter.domain.bookProgressHelper.imageGenerator.ImageGenerator;
-import com.pkg.littlewriter.domain.bookProgressHelper.model.BookProgressDetails;
+import com.pkg.littlewriter.domain.bookProgressHelper.model.BookToProgress;
 import com.pkg.littlewriter.domain.bookProgressHelper.model.ContextAndQuestion;
 import com.pkg.littlewriter.domain.bookProgressHelper.model.Illustration;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,12 +24,12 @@ public class AsyncBookPageHelper {
     }
 
     @Async
-    public CompletableFuture<ContextAndQuestion> asyncGenerateContextAndQuestionFrom(BookProgressDetails bookProgressDetails) throws BookProgressException {
+    public CompletableFuture<ContextAndQuestion> asyncGenerateContextAndQuestionFrom(BookToProgress bookProgressDetails) throws BookProgressException {
         return CompletableFuture.completedFuture(contextAndQuestionGenerator.generateFrom(bookProgressDetails));
     }
 
     @Async
-    public CompletableFuture<Illustration> asyncGenerateIllustrationFrom(BookProgressDetails bookProgressDetails) throws BookProgressException {
+    public CompletableFuture<Illustration> asyncGenerateIllustrationFrom(BookToProgress bookProgressDetails) throws BookProgressException {
         return CompletableFuture.completedFuture(imageGenerator.generateFrom(bookProgressDetails));
     }
 }
