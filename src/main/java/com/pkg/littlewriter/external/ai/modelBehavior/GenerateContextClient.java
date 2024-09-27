@@ -5,7 +5,6 @@ import com.pkg.littlewriter.external.ai.commons.OpenAiModelEnum;
 import com.pkg.littlewriter.external.ai.exceptions.AiException;
 import com.pkg.littlewriter.external.ai.exceptions.AiIllegalFormatResponseException;
 import com.pkg.littlewriter.external.ai.input.GenerateContextQuestionInputDto;
-import com.pkg.littlewriter.external.ai.response.GenerateContextQuestionResponseDto;
 import com.pkg.littlewriter.external.ai.commons.Jsonable;
 
 import com.theokanning.openai.completion.chat.ChatCompletionChoice;
@@ -18,7 +17,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
-public class GenerateContextBehavior implements AiModelBehavior<GenerateContextQuestionInputDto, GenerateContextQuestionResponseDto> {
+public class GenerateContextClient implements AiApiClient<GenerateContextQuestionInputDto> {
     private final OpenAiService openAiService;
 
     private static final ChatMessage SYSTEM_MESSAGE = new ChatMessage("system",
@@ -40,17 +39,15 @@ public class GenerateContextBehavior implements AiModelBehavior<GenerateContextQ
     );
 
     @Autowired
-    public GenerateContextBehavior(OpenAiService openAiService) {
+    public GenerateContextClient(OpenAiService openAiService) {
         this.openAiService = openAiService;
     }
 
     @Override
-    public GenerateContextQuestionResponseDto getResponseFrom(GenerateContextQuestionInputDto aiInput) throws AiException {
+    public String getResponseFrom(GenerateContextQuestionInputDto aiInput) throws AiException {
         try {
             Jsonable<GenerateContextQuestionInputDto> inputJsonable = new Jsonable<>(aiInput);
-            ChatMessage response = getChatMessage(inputJsonable);
-            Jsonable<GenerateContextQuestionResponseDto> responseJsonable = new Jsonable<>(response.getContent(), GenerateContextQuestionResponseDto.class);
-            return responseJsonable.getData();
+            return getChatMessage(inputJsonable).getContent();
         } catch (JsonProcessingException e) {
             throw new AiIllegalFormatResponseException(e.getMessage());
         }

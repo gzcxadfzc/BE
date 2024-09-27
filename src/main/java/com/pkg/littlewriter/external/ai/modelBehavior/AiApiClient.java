@@ -3,6 +3,6 @@ package com.pkg.littlewriter.external.ai.modelBehavior;
 import com.pkg.littlewriter.external.ai.exceptions.AiException;
 
 @FunctionalInterface
-public interface AiModelBehavior <I, R>{
-    R getResponseFrom(I aiInput) throws AiException;
+public interface AiApiClient<I>{
+    String getResponseFrom(I aiInput) throws AiException;
 }

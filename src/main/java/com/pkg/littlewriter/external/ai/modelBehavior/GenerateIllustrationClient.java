@@ -2,25 +2,23 @@ package com.pkg.littlewriter.external.ai.modelBehavior;
 
 import com.pkg.littlewriter.external.ai.commons.OpenAiModelEnum;
 import com.pkg.littlewriter.external.ai.input.GenerateImageInputDto;
-import com.pkg.littlewriter.external.ai.response.GenerateImageResponseDto;
 import com.theokanning.openai.image.CreateImageRequest;
 import com.theokanning.openai.service.OpenAiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class GenerateIllustrationBehavior implements AiModelBehavior<GenerateImageInputDto, GenerateImageResponseDto> {
+public class GenerateIllustrationClient implements AiApiClient<GenerateImageInputDto> {
     private final OpenAiService openAiService;
 
     @Autowired
-    public GenerateIllustrationBehavior(OpenAiService openAiService) {
+    public GenerateIllustrationClient(OpenAiService openAiService) {
         this.openAiService = openAiService;
     }
 
     @Override
-    public GenerateImageResponseDto getResponseFrom(GenerateImageInputDto generateImageInputDto) {
-        String url = generateImageUrl(generateImageInputDto);
-        return new GenerateImageResponseDto(url);
+    public String getResponseFrom(GenerateImageInputDto generateImageInputDto) {
+        return generateImageUrl(generateImageInputDto);
     }
 
     private String generateImageUrl(GenerateImageInputDto aiInput) {

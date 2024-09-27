@@ -1,16 +1,14 @@
 package com.pkg.littlewriter.external.ai;
 
 import com.pkg.littlewriter.external.ai.exceptions.AiException;
-import com.pkg.littlewriter.external.ai.modelBehavior.AiModelBehavior;
+import com.pkg.littlewriter.external.ai.modelBehavior.AiApiClient;
 
 public abstract class Ai<I, R> {
-    protected AiModelBehavior<I, R> aiModelBehavior;
+    protected AiApiClient<I> aiApiClient;
 
-    protected Ai(AiModelBehavior<I, R> aiModelBehavior) {
-        this.aiModelBehavior = aiModelBehavior;
+    protected Ai(AiApiClient<I> aiApiClient) {
+        this.aiApiClient = aiApiClient;
     }
 
-    public R getResponseFrom(I aiInput) throws AiException {
-        return aiModelBehavior.getResponseFrom(aiInput);
-    }
+    public abstract R getResponseFrom(I aiInput) throws AiException;
 }

@@ -12,11 +12,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ImageGeneratorImpl implements ImageGenerator {
+public class ImageGeneratorAdapter implements ImageGenerator {
     private final AiImageGenerator aiImageGenerator;
 
     @Autowired
-    public ImageGeneratorImpl(AiImageGenerator aiImageGenerator) {
+    public ImageGeneratorAdapter(AiImageGenerator aiImageGenerator) {
         this.aiImageGenerator = aiImageGenerator;
     }
 
