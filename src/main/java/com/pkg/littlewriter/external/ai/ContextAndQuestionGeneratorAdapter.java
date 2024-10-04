@@ -1,7 +1,7 @@
 package com.pkg.littlewriter.external.ai;
 
 import com.pkg.littlewriter.domain.bookProgressHelper.contextAndQuestionGenerator.ContextAndQuestionGenerator;
-import com.pkg.littlewriter.domain.bookProgressHelper.exceptions.BookProgressException;
+import com.pkg.littlewriter.domain.bookProgressHelper.exceptions.ContextAndQuestionCreationFailedException;
 import com.pkg.littlewriter.domain.bookProgressHelper.model.BookToProgress;
 import com.pkg.littlewriter.domain.bookProgressHelper.model.ContextAndQuestion;
 import com.pkg.littlewriter.external.ai.exceptions.AiException;
@@ -23,13 +23,13 @@ public class ContextAndQuestionGeneratorAdapter implements ContextAndQuestionGen
     }
 
     @Override
-    public ContextAndQuestion generateFrom(BookToProgress bookToProgress) throws BookProgressException {
+    public ContextAndQuestion generateFrom(BookToProgress bookToProgress) throws ContextAndQuestionCreationFailedException {
         GenerateContextQuestionInputDto inputDto = mapper.toGenerateContextQuestionInputDto(bookToProgress);
         try {
             GenerateContextQuestionResponseDto responseDto = contextQuestionGenerator.getResponseFrom(inputDto);
             return new ContextAndQuestion(responseDto.getRefinedText(), responseDto.getQuestions());
         } catch (AiException e) {
-            throw new BookProgressException(e.getMessage());
+            throw new ContextAndQuestionCreationFailedException(e.getMessage());
         }
     }
 }

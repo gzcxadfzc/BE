@@ -3,12 +3,12 @@ package com.pkg.littlewriter.domain.bookProgressHelper;
 import com.pkg.littlewriter.domain.bookProgressHelper.exceptions.BookProgressException;
 import com.pkg.littlewriter.domain.bookProgressHelper.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-@Component
+@Service
 public class BookPageProgressService implements BookPageProgressHelper {
     private final AsyncBookPageHelper asyncBookPageHelper;
 

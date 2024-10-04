@@ -1,7 +1,8 @@
 package com.pkg.littlewriter.domain.bookProgressHelper;
 
 import com.pkg.littlewriter.domain.bookProgressHelper.contextAndQuestionGenerator.ContextAndQuestionGenerator;
-import com.pkg.littlewriter.domain.bookProgressHelper.exceptions.BookProgressException;
+import com.pkg.littlewriter.domain.bookProgressHelper.exceptions.ContextAndQuestionCreationFailedException;
+import com.pkg.littlewriter.domain.bookProgressHelper.exceptions.ImageCreationFailedException;
 import com.pkg.littlewriter.domain.bookProgressHelper.imageGenerator.ImageGenerator;
 import com.pkg.littlewriter.domain.bookProgressHelper.model.BookToProgress;
 import com.pkg.littlewriter.domain.bookProgressHelper.model.ContextAndQuestion;
@@ -24,12 +25,12 @@ public class AsyncBookPageHelper {
     }
 
     @Async
-    public CompletableFuture<ContextAndQuestion> asyncGenerateContextAndQuestionFrom(BookToProgress bookProgressDetails) throws BookProgressException {
+    public CompletableFuture<ContextAndQuestion> asyncGenerateContextAndQuestionFrom(BookToProgress bookProgressDetails) throws ContextAndQuestionCreationFailedException {
         return CompletableFuture.completedFuture(contextAndQuestionGenerator.generateFrom(bookProgressDetails));
     }
 
     @Async
-    public CompletableFuture<Illustration> asyncGenerateIllustrationFrom(BookToProgress bookProgressDetails) throws BookProgressException {
+    public CompletableFuture<Illustration> asyncGenerateIllustrationFrom(BookToProgress bookProgressDetails) throws ImageCreationFailedException {
         return CompletableFuture.completedFuture(imageGenerator.generateFrom(bookProgressDetails));
     }
 }

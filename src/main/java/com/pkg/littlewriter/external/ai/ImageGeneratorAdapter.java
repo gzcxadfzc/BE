@@ -1,6 +1,7 @@
 package com.pkg.littlewriter.external.ai;
 
 import com.pkg.littlewriter.domain.bookProgressHelper.exceptions.BookProgressException;
+import com.pkg.littlewriter.domain.bookProgressHelper.exceptions.ImageCreationFailedException;
 import com.pkg.littlewriter.domain.bookProgressHelper.imageGenerator.ImageGenerator;
 import com.pkg.littlewriter.domain.bookProgressHelper.model.BookToProgress;
 import com.pkg.littlewriter.domain.bookProgressHelper.model.Illustration;
@@ -23,13 +24,13 @@ public class ImageGeneratorAdapter implements ImageGenerator {
     }
 
     @Override
-    public Illustration generateFrom(BookToProgress bookToProgress) throws BookProgressException {
+    public Illustration generateFrom(BookToProgress bookToProgress) throws ImageCreationFailedException {
         GenerateImageInputDto generateImageInputDto = mapper.toGenerateImageInputDto(bookToProgress);
         try {
             GenerateImageResponseDto responseDto = aiImageGenerator.getResponseFrom(generateImageInputDto);
             return new Illustration(responseDto.getImageUrl());
         } catch (AiException e) {
-            throw new BookProgressException(e.getMessage());
+            throw new ImageCreationFailedException(e.getMessage());
         }
     }
 }
