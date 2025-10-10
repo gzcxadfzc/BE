@@ -1,14 +1,57 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.2.2'
-	id 'io.spring.dependency-management' version '1.1.4'
+	id 'java-library'
+	id 'org.springframework.boot' apply(false)
+	id 'io.spring.dependency-management'
 }
 
-group = 'com.pkg'
-version = '0.0.1-dev'
+allprojects {
+	group = "${projectGroup}"
+	version = "${applicationVersion}"
+	sourceCompatibility = project.javaVersion
+
+	repositories {
+		mavenCentral()
+	}
+}
+
+subprojects {
+	apply plugin: 'java-library'
+	apply plugin: 'org.springframework.boot'
+	apply plugin: 'io.spring.dependency-management'
+
+
+	dependencyManagement {
+		imports {
+			mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudDependenciesVersion}"
+		}
+	}
+
+	dependencies {
+		compileOnly 'org.jetbrains:annotations:23.0.0'
+		implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+		testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	}
+
+	configurations {
+		configureEach {
+			exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+			exclude group: 'commons-logging', module: 'commons-logging'
+		}
+	}
+
+	bootJar.enabled = false
+	jar.enabled = true
+
+	test {
+		useJUnitPlatform {
+			excludeTags('develop', 'restdocs')
+		}
+	}
+
+}
 
 java {
-	sourceCompatibility = '17'
+	sourceCompatibility = project.javaVersion
 }
 
 configurations {
@@ -21,29 +64,29 @@ repositories {
 	mavenCentral()
 }
 
-dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
-	implementation 'com.theokanning.openai-gpt3-java:service:0.18.2'
-	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
-	implementation 'org.springframework.boot:spring-boot-starter-actuator'
-	implementation 'org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE'
-	implementation 'mysql:mysql-connector-java:8.0.31'
-	implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
-	implementation 'com.theokanning.openai-gpt3-java:service:0.18.2'
-	implementation 'com.h2database:h2'
-	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-	testImplementation 'org.assertj:assertj-core:3.25.3'
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.3'
-	testImplementation 'org.springframework.security:spring-security-test'
-	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
-	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'
-}
+//dependencies {
+//	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+//	implementation 'org.springframework.boot:spring-boot-starter-security'
+//	implementation 'org.springframework.boot:spring-boot-starter-web'
+//	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
+//	implementation 'com.theokanning.openai-gpt3-java:service:0.18.2'
+//	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+//	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+//	implementation 'org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE'
+//	implementation 'mysql:mysql-connector-java:8.0.31'
+//	implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
+//	implementation 'com.theokanning.openai-gpt3-java:service:0.18.2'
+//	implementation 'com.h2database:h2'
+//	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+//	testImplementation 'org.assertj:assertj-core:3.25.3'
+//	compileOnly 'org.projectlombok:lombok'
+//	annotationProcessor 'org.projectlombok:lombok'
+//	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+//	testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.3'
+//	testImplementation 'org.springframework.security:spring-security-test'
+//	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
+//	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'
+//}
 
 tasks.named('test') {
 	useJUnitPlatform()

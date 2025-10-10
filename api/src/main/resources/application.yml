@@ -1,0 +1,5 @@
+spring:
+  application.name: little-writer-api
+  config:
+    import:
+      - auth.yml
