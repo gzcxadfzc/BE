@@ -5,14 +5,16 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "book_page")
 public class PageJpaEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "book_id", nullable = false)
     private String bookId;
-    @Column(length = 511)
+    @Column(name = "context", length = 511, nullable = false)
     private String context;
-    private String colorImageUrl;
-    private String sketchImageUrl;
-    private String actionInfo;
+    @Column(name = "image_url", nullable = false)
+    private String image_url;
+    @Column(name = "page_number", nullable = false)
     private int pageNumber;
 }

@@ -1,0 +1,70 @@
+spring.config.activate.on-profile: prod
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  redis:
+    port: ${REDIS_PORT}
+    host: ${REDIS_HOST}
+storage:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    jdbc-url: ${JDBC_URL}
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
+
+---
+spring.config.activate.on-profile: test
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  redis:
+    port: 6379
+    host: 127.0.0.1
+
+---
+spring.config.activate.on-profile: test-in-memory
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create
+  redis:
+    port: 6379
+    host: 127.0.0.1
+---
+
+storage:
+  s3:
+    bucket: littlewriter
+    region: ap-northeast-2
+    secret-key: ${AWS_SECRET_KEY}
+    access-key: ${AWS_ACCESS_KEY}
+    cdn: https://d2ojpr6lej9d5i.cloudfront.net
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    jdbc-url: jdbc:mysql://localhost:3306/little-writer-v2
+    username: root
+    password: 7631
+    data-source-properties:
+      cachePrepStmts: true
+      prepStmtCacheSize: 250
+      prepStmtCacheSqlLimit: 2048
+      useServerPrepStmts: true
+      useLocalSessionState: true
+      rewriteBatchedStatements: true
+      cacheResultSetMetadata: true
+      cacheServerConfiguration: true
+      elideSetAutoCommits: true
+      maintainTimeStats: false
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      auto-commit: true
+      pool-name: LittleWriterHikariCP

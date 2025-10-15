@@ -1,24 +1,18 @@
 package com.pkg.redis;
 
-import java.util.List;
-
 public record BookInProgressRedisEntity(
+        String id,
+        String memberId,
         String backgroundInfo,
-        String bookId,
-        Long characterId,
-        Long userId,
-        List<Page> previousPages,
+        BookCharacter character,
         int storyLength
 ) {
-
-    record Page(
+    record BookCharacter(
         Long id,
-        String bookId,
-        String context,
-        String colorImageUrl,
-        String sketchImageUrl,
-        String actionInfo,
-        int pageNumber
+        String name,
+        String userDescription,
+        String appearanceKeywords,
+        String personality
     ) {
     }
 }

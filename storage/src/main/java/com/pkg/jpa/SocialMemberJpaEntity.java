@@ -3,14 +3,14 @@ package com.pkg.jpa;
 import jakarta.persistence.*;
 
 @Entity
-@IdClass(SocialMemberPK.class)
 @Table(name = "social_member")
 public class SocialMemberJpaEntity {
+
     @Id
-    @Column(name = "auth_provider")
+    @Column(name = "auth_provider", nullable = false)
     private String authProvider;
     @Id
-    @Column(name = "provided_id")
+    @Column(name = "provided_id", nullable = false)
     private Long providedId;
     private String email;
     private String nickName;

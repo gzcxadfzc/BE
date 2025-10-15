@@ -1,7 +1,6 @@
 package com.pkg.jpa;
 
 import jakarta.persistence.*;
-import java.util.List;
 
 @Entity
 @Table(name = "member")
@@ -10,18 +9,12 @@ public class MemberJpaEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(nullable = false)
+    @Column(name = "username", nullable = false)
     private String username;
+    @Column(name = "password")
     private String password;
-    private String authority;
+    @Enumerated(EnumType.STRING)
+    private Role role;
+    @Column(name = "auth_provider")
     private String authProvider;
-    @OneToMany(mappedBy = "member")
-    private List<SocialMemberJpaEntity> socialMemberEntities;
-
-    @PrePersist
-    private void setDefaultPrivilege() {
-        if(this.authority == null) {
-            this.authority = "standard";
-        }
-    }
 }
