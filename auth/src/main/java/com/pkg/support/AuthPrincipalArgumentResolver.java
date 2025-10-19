@@ -3,7 +3,7 @@ package com.pkg.support;
 import com.pkg.authentication.token.MemberPrincipal;
 import com.pkg.core.AuthenticationException;
 import com.pkg.core.AuthenticationExceptionType;
-import com.pkg.domain.member.CurrentUser;
+import com.pkg.domain.member.Actor;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -18,7 +18,7 @@ public class AuthPrincipalArgumentResolver implements HandlerMethodArgumentResol
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
         return parameter.hasParameterAnnotation(Authenticated.class)
-                && parameter.getParameterType().equals(CurrentUser.class);
+                && parameter.getParameterType().equals(Actor.class);
     }
 
     @Override
@@ -30,7 +30,7 @@ public class AuthPrincipalArgumentResolver implements HandlerMethodArgumentResol
     ) {
         MemberPrincipal principal = (MemberPrincipal) webRequest.getAttribute(RequestAttributeKey.PRINCIPAL.name(), RequestAttributes.SCOPE_REQUEST);
         throwIfNoPrincipal(principal);
-        return new CurrentUser(
+        return new Actor(
                 principal.getMemberId(),
                 principal.getRole()
         );

@@ -1,10 +1,16 @@
 package com.pkg.domain.character;
 
+import com.pkg.domain.member.Actor;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
 public interface CharacterRepository {
 
-    MainCharacter retrieveByCharacterId(String characterId);
+    BookCharacter retrieveById(String characterId);
 
-    MainCharacter retrieveByMemberId(String memberId);
+    List<BookCharacter> retrieveByUser(Actor user);
 
-    void save(MainCharacter mainCharacter);
+    BookCharacter save(BookCharacterCreationRequest request);
 }

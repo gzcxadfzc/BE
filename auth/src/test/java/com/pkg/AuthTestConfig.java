@@ -2,11 +2,10 @@ package com.pkg;
 
 import com.auth0.jwt.algorithms.Algorithm;
 import com.pkg.authentication.token.*;
-import com.pkg.configs.JwtConfig;
 import com.pkg.configs.RSAKeyFactory;
 import com.pkg.core.AuthenticationException;
 import com.pkg.core.Authenticator;
-import com.pkg.domain.member.CurrentUser;
+import com.pkg.domain.member.Actor;
 import com.pkg.domain.member.Role;
 import com.pkg.support.Authenticated;
 import com.pkg.support.AuthPrincipalArgumentResolver;
@@ -41,7 +40,7 @@ public class AuthTestConfig {
         }
 
         @GetMapping("/secure")
-        public CurrentUser secure(@Authenticated CurrentUser currentUser) {
+        public Actor secure(@Authenticated Actor currentUser) {
             return currentUser;
         }
     }

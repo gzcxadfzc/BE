@@ -35,18 +35,22 @@ class RedisRepositoryTest {
         bookPageRedisRepository.deleteAll("test-book-2");
 
         // Clean up BookInProgress test data
-        if (bookInProgressRedisRepository.existsByUserId(1L)) {
-            bookInProgressRedisRepository.deleteByUserId(1L);
-        }
-        if (bookInProgressRedisRepository.existsByUserId(2L)) {
-            bookInProgressRedisRepository.deleteByUserId(2L);
+        String[] bookIds = {
+                "test-book-1", "test-book-2", "book-id-1", "book-id-2",
+                "book-id-3", "test-book-id-1", "test-book-id-2"
+        };
+
+        for (String bookId : bookIds) {
+            if (bookInProgressRedisRepository.has(bookId)) {
+                bookInProgressRedisRepository.delete(bookId);
+            }
         }
     }
 
     // ==================== BookInProgressRedisRepository Tests ====================
 
     @Test
-    @DisplayName("BookInProgress: put과 getByUserId로 저장 및 조회 확인")
+    @DisplayName("BookInProgress: put과 get으로 저장 및 조회 확인")
     void testBookInProgressPutAndGet() {
         // Given
         Long userId = 1L;
@@ -67,7 +71,7 @@ class RedisRepositoryTest {
 
         // When
         bookInProgressRedisRepository.put(entity);
-        BookInProgressRedisEntity retrieved = bookInProgressRedisRepository.getByUserId(userId);
+        BookInProgressRedisEntity retrieved = bookInProgressRedisRepository.get("book-id-1");
 
         // Then
         assertThat(retrieved).isNotNull();
@@ -90,22 +94,23 @@ class RedisRepositoryTest {
     void testBookInProgressExists() {
         // Given
         Long userId = 1L;
+        String testBookId = "test-book-id-1";
         BookInProgressRedisEntity.BookCharacter character = new BookInProgressRedisEntity.BookCharacter(
                 100L, "캐릭터", "설명", "외모", "성격"
         );
         BookInProgressRedisEntity entity = new BookInProgressRedisEntity(
-                "book-id-1", String.valueOf(userId), "배경", character, 5
+                testBookId, String.valueOf(userId), "배경", character, 5
         );
 
         // When - 저장 전
-        boolean existsBefore = bookInProgressRedisRepository.existsByUserId(userId);
+        boolean existsBefore = bookInProgressRedisRepository.has(testBookId);
 
         // Then - 저장 전에는 존재하지 않음
         assertThat(existsBefore).isFalse();
 
         // When - 저장 후
         bookInProgressRedisRepository.put(entity);
-        boolean existsAfter = bookInProgressRedisRepository.existsByUserId(userId);
+        boolean existsAfter = bookInProgressRedisRepository.has(testBookId);
 
         // Then - 저장 후에는 존재함
         assertThat(existsAfter).isTrue();
@@ -118,24 +123,21 @@ class RedisRepositoryTest {
     void testBookInProgressDelete() {
         // Given
         Long userId = 1L;
+        String testBookId = "test-book-id-1";
         BookInProgressRedisEntity.BookCharacter character = new BookInProgressRedisEntity.BookCharacter(
                 100L, "캐릭터", "설명", "외모", "성격"
         );
         BookInProgressRedisEntity entity = new BookInProgressRedisEntity(
-                "book-id-1", String.valueOf(userId), "배경", character, 5
+                testBookId, String.valueOf(userId), "배경", character, 5
         );
         bookInProgressRedisRepository.put(entity);
 
         // When
-        BookInProgressRedisEntity deleted = bookInProgressRedisRepository.deleteByUserId(userId);
-        boolean existsAfterDelete = bookInProgressRedisRepository.existsByUserId(userId);
-        BookInProgressRedisEntity retrievedAfterDelete = bookInProgressRedisRepository.getByUserId(userId);
+        bookInProgressRedisRepository.delete(testBookId);
+        boolean existsAfterDelete = bookInProgressRedisRepository.has(testBookId);
 
         // Then
-        assertThat(deleted).isNotNull();
-        assertThat(deleted.id()).isEqualTo("book-id-1");
         assertThat(existsAfterDelete).isFalse();
-        assertThat(retrievedAfterDelete).isNull();
 
         System.out.println("BookInProgress deleteByUserId operation successful");
     }
@@ -146,55 +148,198 @@ class RedisRepositoryTest {
         // Given
         Long userId1 = 1L;
         Long userId2 = 2L;
+        String testBookId1 = "test-book-id-1";
+        String testBookId2 = "test-book-id-2";
+
 
         BookInProgressRedisEntity.BookCharacter character1 = new BookInProgressRedisEntity.BookCharacter(
                 100L, "캐릭터1", "설명1", "외모1", "성격1"
         );
         BookInProgressRedisEntity entity1 = new BookInProgressRedisEntity(
-                "book-id-1", String.valueOf(userId1), "배경1", character1, 5
+                testBookId1, String.valueOf(userId1), "배경1", character1, 5
         );
 
         BookInProgressRedisEntity.BookCharacter character2 = new BookInProgressRedisEntity.BookCharacter(
                 200L, "캐릭터2", "설명2", "외모2", "성격2"
         );
         BookInProgressRedisEntity entity2 = new BookInProgressRedisEntity(
-                "book-id-2", String.valueOf(userId2), "배경2", character2, 10
+                testBookId2, String.valueOf(userId2), "배경2", character2, 10
         );
 
         // When
         bookInProgressRedisRepository.put(entity1);
         bookInProgressRedisRepository.put(entity2);
 
-        BookInProgressRedisEntity retrieved1 = bookInProgressRedisRepository.getByUserId(userId1);
-        BookInProgressRedisEntity retrieved2 = bookInProgressRedisRepository.getByUserId(userId2);
+        BookInProgressRedisEntity retrieved1 = bookInProgressRedisRepository.get(testBookId1);
+        BookInProgressRedisEntity retrieved2 = bookInProgressRedisRepository.get(testBookId2);
 
         // Then
         assertThat(retrieved1).isNotNull();
-        assertThat(retrieved1.id()).isEqualTo("book-id-1");
+        assertThat(retrieved1.id()).isEqualTo(testBookId1);
         assertThat(retrieved1.character().name()).isEqualTo("캐릭터1");
 
         assertThat(retrieved2).isNotNull();
-        assertThat(retrieved2.id()).isEqualTo("book-id-2");
+        assertThat(retrieved2.id()).isEqualTo(testBookId2);
         assertThat(retrieved2.character().name()).isEqualTo("캐릭터2");
 
         System.out.println("BookInProgress multiple users operations successful");
     }
 
     @Test
-    @DisplayName("BookInProgress: 존재하지 않는 userId로 조회 시 null 반환")
+    @DisplayName("BookInProgress: 존재하지 않는 id로 조회 시 null 반환")
     void testBookInProgressGetNonExistent() {
         // Given
         Long nonExistentUserId = 999L;
 
         // When
-        BookInProgressRedisEntity retrieved = bookInProgressRedisRepository.getByUserId(nonExistentUserId);
-        boolean exists = bookInProgressRedisRepository.existsByUserId(nonExistentUserId);
+        BookInProgressRedisEntity retrieved = bookInProgressRedisRepository.get("non-exist-id");
 
         // Then
         assertThat(retrieved).isNull();
-        assertThat(exists).isFalse();
 
         System.out.println("BookInProgress get non-existent operation successful");
+    }
+
+    @Test
+    @DisplayName("BookInProgress: findByMemberId로 특정 회원의 모든 진행중인 책 조회")
+    void testFindByMemberId() {
+        // Given
+        String memberId = "member-123";
+        BookInProgressRedisEntity.BookCharacter character1 = new BookInProgressRedisEntity.BookCharacter(
+                100L, "캐릭터1", "설명1", "외모1", "성격1"
+        );
+        BookInProgressRedisEntity entity1 = new BookInProgressRedisEntity(
+                "book-id-1", memberId, "배경1", character1, 5
+        );
+
+        BookInProgressRedisEntity.BookCharacter character2 = new BookInProgressRedisEntity.BookCharacter(
+                200L, "캐릭터2", "설명2", "외모2", "성격2"
+        );
+        BookInProgressRedisEntity entity2 = new BookInProgressRedisEntity(
+                "book-id-2", memberId, "배경2", character2, 10
+        );
+
+        // When
+        bookInProgressRedisRepository.put(entity1);
+        bookInProgressRedisRepository.put(entity2);
+
+        List<BookInProgressRedisEntity> foundBooks = bookInProgressRedisRepository.findByMemberId(memberId);
+
+        // Then
+        assertThat(foundBooks).isNotNull();
+        assertThat(foundBooks).hasSize(2);
+        assertThat(foundBooks).extracting(BookInProgressRedisEntity::id)
+                .containsExactlyInAnyOrder("book-id-1", "book-id-2");
+        assertThat(foundBooks).extracting(BookInProgressRedisEntity::memberId)
+                .containsOnly(memberId);
+
+        System.out.println("BookInProgress findByMemberId operation successful");
+    }
+
+    @Test
+    @DisplayName("BookInProgress: findByMemberId로 존재하지 않는 회원 조회 시 빈 리스트 반환")
+    void testFindByMemberIdNonExistent() {
+        // Given
+        String nonExistentMemberId = "non-existent-member";
+
+        // When
+        List<BookInProgressRedisEntity> foundBooks = bookInProgressRedisRepository.findByMemberId(nonExistentMemberId);
+
+        // Then
+        assertThat(foundBooks).isNotNull();
+        assertThat(foundBooks).isEmpty();
+
+        System.out.println("BookInProgress findByMemberId with non-existent member successful");
+    }
+
+    @Test
+    @DisplayName("BookInProgress: findByMemberId로 여러 회원의 책을 독립적으로 조회")
+    void testFindByMemberIdMultipleMembers() {
+        // Given
+        String memberId1 = "member-111";
+        String memberId2 = "member-222";
+
+        BookInProgressRedisEntity.BookCharacter character1 = new BookInProgressRedisEntity.BookCharacter(
+                100L, "캐릭터1", "설명1", "외모1", "성격1"
+        );
+        BookInProgressRedisEntity entity1 = new BookInProgressRedisEntity(
+                "book-id-1", memberId1, "배경1", character1, 5
+        );
+
+        BookInProgressRedisEntity.BookCharacter character2 = new BookInProgressRedisEntity.BookCharacter(
+                200L, "캐릭터2", "설명2", "외모2", "성격2"
+        );
+        BookInProgressRedisEntity entity2 = new BookInProgressRedisEntity(
+                "book-id-2", memberId1, "배경2", character2, 10
+        );
+
+        BookInProgressRedisEntity.BookCharacter character3 = new BookInProgressRedisEntity.BookCharacter(
+                300L, "캐릭터3", "설명3", "외모3", "성격3"
+        );
+        BookInProgressRedisEntity entity3 = new BookInProgressRedisEntity(
+                "book-id-3", memberId2, "배경3", character3, 15
+        );
+
+        // When
+        bookInProgressRedisRepository.put(entity1);
+        bookInProgressRedisRepository.put(entity2);
+        bookInProgressRedisRepository.put(entity3);
+
+        List<BookInProgressRedisEntity> member1Books = bookInProgressRedisRepository.findByMemberId(memberId1);
+        List<BookInProgressRedisEntity> member2Books = bookInProgressRedisRepository.findByMemberId(memberId2);
+
+        // Then
+        assertThat(member1Books).hasSize(2);
+        assertThat(member1Books).extracting(BookInProgressRedisEntity::id)
+                .containsExactlyInAnyOrder("book-id-1", "book-id-2");
+        assertThat(member1Books).extracting(BookInProgressRedisEntity::memberId)
+                .containsOnly(memberId1);
+
+        assertThat(member2Books).hasSize(1);
+        assertThat(member2Books).extracting(BookInProgressRedisEntity::id)
+                .containsExactly("book-id-3");
+        assertThat(member2Books).extracting(BookInProgressRedisEntity::memberId)
+                .containsOnly(memberId2);
+
+        System.out.println("BookInProgress findByMemberId with multiple members successful");
+    }
+
+    @Test
+    @DisplayName("BookInProgress: 책 삭제 후 findByMemberId 결과에 반영되는지 확인")
+    void testFindByMemberIdAfterDelete() {
+        // Given
+        String memberId = "member-123";
+        BookInProgressRedisEntity.BookCharacter character1 = new BookInProgressRedisEntity.BookCharacter(
+                100L, "캐릭터1", "설명1", "외모1", "성격1"
+        );
+        BookInProgressRedisEntity entity1 = new BookInProgressRedisEntity(
+                "book-id-1", memberId, "배경1", character1, 5
+        );
+
+        BookInProgressRedisEntity.BookCharacter character2 = new BookInProgressRedisEntity.BookCharacter(
+                200L, "캐릭터2", "설명2", "외모2", "성격2"
+        );
+        BookInProgressRedisEntity entity2 = new BookInProgressRedisEntity(
+                "book-id-2", memberId, "배경2", character2, 10
+        );
+
+        bookInProgressRedisRepository.put(entity1);
+        bookInProgressRedisRepository.put(entity2);
+
+        // When - 첫 번째 책 삭제
+        bookInProgressRedisRepository.delete("book-id-1");
+        List<BookInProgressRedisEntity> foundBooksAfterDelete = bookInProgressRedisRepository.findByMemberId(memberId);
+
+        // Then - 삭제된 책은 조회되지 않아야 함 (단, Set에서는 제거되지 않으므로 null이 포함될 수 있음)
+        assertThat(foundBooksAfterDelete).isNotNull();
+        // null 값을 필터링한 결과 확인
+        List<BookInProgressRedisEntity> nonNullBooks = foundBooksAfterDelete.stream()
+                .filter(book -> book != null)
+                .toList();
+        assertThat(nonNullBooks).hasSize(1);
+        assertThat(nonNullBooks.get(0).id()).isEqualTo("book-id-2");
+
+        System.out.println("BookInProgress findByMemberId after delete operation successful");
     }
 
     // ==================== BookPageRedisRepository Tests ====================

@@ -1,9 +1,11 @@
 package com.pkg.domain.character;
 
-public record CharacterOrigin(
+import com.pkg.domain.member.Actor;
+
+public record BookCharacterOrigin(
     byte[] imageBytes,
     String name,
     String personality,
-    String userId
+    Actor owner
 ) {
 }

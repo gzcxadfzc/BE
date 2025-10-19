@@ -1,11 +1,14 @@
-package com.pkg.domain.book;
+package com.pkg.domain.bookprogress;
+
+import com.pkg.domain.book.BookPage;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public record BookInProgress(
     String id,
-    String bookTitle,
+    Long ownerId,
+    String backgroundInfo,
     Character character,
     List<BookPage> previousPages
 ) {
@@ -14,7 +17,8 @@ public record BookInProgress(
         updated.add(bookPage);
         return new BookInProgress(
                 this.id,
-                this.bookTitle,
+                this.ownerId,
+                this.backgroundInfo,
                 this.character,
                 updated
         );

@@ -11,7 +11,7 @@ public interface BookRepository {
 
     Book retrieveById(String bookId);
 
-    List<Book> retrieveByMemberId(String memberId);
+    List<Book> retrieveByMemberId(long userId);
 
-    List<BookThumbnail> retrieveThumbnailsByMemberId(String memberId);
+    List<BookThumbnail> retrieveThumbnailsByMemberId(long userId);
 }

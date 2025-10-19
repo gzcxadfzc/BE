@@ -1,8 +1,11 @@
 package com.pkg.domain.book;
 
+import com.pkg.domain.bookprogress.CompleteBookRequest;
+import com.pkg.domain.member.Actor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class BookService {
@@ -13,19 +16,34 @@ public class BookService {
         this.bookRepository = bookRepository;
     }
 
-    public List<BookThumbnail> retrieveBookThumbnailsByMemberId(String memberId) {
-        List<BookThumbnail> thumbnails = bookRepository.retrieveThumbnailsByMemberId(memberId);
-        if(thumbnails == null) {
-            throw BookException.emptyBookException(memberId);
-        }
-        return bookRepository.retrieveThumbnailsByMemberId(memberId);
+    public List<BookThumbnail> retrieveBookThumbnailsByMemberId(Actor currentUser) {
+        return bookRepository.retrieveThumbnailsByMemberId(currentUser.id());
     }
 
     public Book retrieveByBookId(String bookId) {
         Book book = bookRepository.retrieveById(bookId);
         if(book == null) {
-            throw BookException.bookNotFoundException(bookId);
+            throw BookException.notFound(bookId);
         }
         return bookRepository.retrieveById(bookId);
+    }
+
+    public Book completeBook(CompleteBookRequest request) {
+        Book book = Book.builder()
+                .title(request.title())
+                .id(request.bookInProgress().id())
+                .character(request.bookInProgress().character())
+                .bookPages(request.bookInProgress().previousPages())
+                .author(request.author())
+                .build();
+        validateOwner(request);
+        bookRepository.save(book);
+        return book;
+    }
+
+    private void validateOwner(CompleteBookRequest request) {
+        if(!Objects.equals(request.bookInProgress().id(), request.memberId())) {
+            throw BookException.notAuthorizedBookCreationFrom(request.bookInProgress());
+        }
     }
 }

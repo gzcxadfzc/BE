@@ -1,5 +1,6 @@
 package com.pkg.domain.book;
 
+import com.pkg.domain.bookprogress.BookInProgress;
 import com.pkg.domain.exception.DomainException;
 import com.pkg.domain.exception.ExceptionCode;
 
@@ -9,17 +10,17 @@ public class BookException extends DomainException {
         super(code, message);
     }
 
-    public static BookException bookNotFoundException(String bookId) {
+    public static BookException notFound(String bookId) {
         return new BookException(
                 ExceptionCode.E404,
                 bookId + " book not found."
         );
     }
 
-    public static BookException emptyBookException(String memberId) {
+    public static BookException notAuthorizedBookCreationFrom(BookInProgress bookInProgress) {
         return new BookException(
-                ExceptionCode.E404,
-                "member: " + memberId + " book not found."
+                ExceptionCode.E403,
+                "not authorized bookInProgress : " + bookInProgress.id()
         );
     }
 }

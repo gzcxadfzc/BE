@@ -1,4 +1,4 @@
-package com.pkg.domain.book;
+package com.pkg.domain.bookprogress;
 
 public record BookToProgress(
     BookInProgress bookInProgress,

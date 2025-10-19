@@ -1,11 +1,14 @@
 package com.pkg.domain.character;
 
-public record MainCharacter(
+import com.pkg.domain.member.Actor;
+
+public record BookCharacter(
         String id,
-        String memberId,
+        Actor owner,
         String name,
         String appearanceKeywords,
         String personality,
+        String description,
         String imageUrl
 ) {
 }
