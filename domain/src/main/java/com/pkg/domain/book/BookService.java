@@ -16,8 +16,8 @@ public class BookService {
         this.bookRepository = bookRepository;
     }
 
-    public List<BookThumbnail> retrieveBookThumbnailsByMemberId(Actor currentUser) {
-        return bookRepository.retrieveThumbnailsByMemberId(currentUser.id());
+    public List<BookThumbnail> retrieveBookThumbnailsByOwner(Actor currentUser) {
+        return bookRepository.retrieveThumbnailsByUser(currentUser);
     }
 
     public Book retrieveByBookId(String bookId) {
@@ -37,8 +37,7 @@ public class BookService {
                 .author(request.author())
                 .build();
         validateOwner(request);
-        bookRepository.save(book);
-        return book;
+        return bookRepository.save(book);
     }
 
     private void validateOwner(CompleteBookRequest request) {

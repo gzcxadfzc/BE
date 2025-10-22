@@ -3,8 +3,8 @@ package com.pkg;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.pkg.authentication.token.*;
 import com.pkg.configs.RSAKeyFactory;
-import com.pkg.core.AuthenticationException;
-import com.pkg.core.Authenticator;
+import com.pkg.authentication.core.AuthenticationException;
+import com.pkg.authentication.core.Authenticator;
 import com.pkg.domain.member.Actor;
 import com.pkg.domain.member.Role;
 import com.pkg.support.Authenticated;
@@ -36,6 +36,11 @@ public class AuthTestConfig {
 
         @GetMapping("/public")
         public String test() {
+            return "OK";
+        }
+
+        @GetMapping("/public/any")
+        public String testAntMatch() {
             return "OK";
         }
 
@@ -93,7 +98,7 @@ public class AuthTestConfig {
                 Authenticator<AccessToken, MemberPrincipal> tokenAuthenticator,
                 @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver
         ) {
-            List<String> shouldNotFilterUriList = List.of("/public");
+            List<String> shouldNotFilterUriList = List.of("/public/**");
             return new JwtAuthenticationFilter(shouldNotFilterUriList, tokenAuthenticator, resolver);
         }
 

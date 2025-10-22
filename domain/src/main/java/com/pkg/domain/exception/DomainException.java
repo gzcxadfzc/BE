@@ -2,14 +2,14 @@ package com.pkg.domain.exception;
 
 public abstract class DomainException extends RuntimeException {
 
-    private ExceptionCode code;
+    private DomainExceptionCode code;
 
-    protected DomainException(ExceptionCode code, String message) {
+    protected DomainException(DomainExceptionCode code, String message) {
         super(message);
         this.code = code;
     }
 
-    public ExceptionCode getCode() {
+    public DomainExceptionCode getCode() {
         return code;
     }
 }

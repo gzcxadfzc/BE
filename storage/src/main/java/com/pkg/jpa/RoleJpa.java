@@ -1,6 +1,6 @@
 package com.pkg.jpa;
 
-public enum Role {
+public enum RoleJpa {
     GUEST,
     MEMBER,
     ADMIN

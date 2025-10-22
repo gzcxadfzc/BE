@@ -1,8 +1,8 @@
 package com.pkg.support;
 
 import com.pkg.authentication.token.MemberPrincipal;
-import com.pkg.core.AuthenticationException;
-import com.pkg.core.AuthenticationExceptionType;
+import com.pkg.authentication.core.AuthenticationException;
+import com.pkg.authentication.core.AuthenticationExceptionType;
 import com.pkg.domain.member.Actor;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;

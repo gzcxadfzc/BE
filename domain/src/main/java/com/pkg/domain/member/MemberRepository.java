@@ -5,5 +5,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface MemberRepository {
 
-    Member retrieveById(String memberId);
+    Member register(Member member);
 }

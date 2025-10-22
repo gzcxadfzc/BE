@@ -3,3 +3,4 @@ spring:
   config:
     import:
       - auth.yml
+      - storage.yml

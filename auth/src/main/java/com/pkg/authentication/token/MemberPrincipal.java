@@ -1,6 +1,6 @@
 package com.pkg.authentication.token;
 
-import com.pkg.core.AuthenticationPrincipal;
+import com.pkg.authentication.core.AuthenticationPrincipal;
 import com.pkg.domain.member.Role;
 
 public class MemberPrincipal extends AuthenticationPrincipal {

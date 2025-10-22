@@ -1,6 +1,8 @@
 package com.pkg.jpa;
 
+import com.pkg.domain.book.BookThumbnail;
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -16,6 +18,7 @@ public class BookJpaEntity {
     private Long characterId;
     @Column(name = "title", nullable = false)
     private String title;
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
     @Column(name = "book_color")
@@ -61,6 +64,16 @@ public class BookJpaEntity {
 
     public String getCoverImageUrl() {
         return coverImageUrl;
+    }
+
+    public BookThumbnail toBookThumbnail() {
+        return new BookThumbnail(
+                this.id,
+                this.title,
+                this.author,
+                this.coverImageUrl,
+                this.createdAt
+        );
     }
 
     public static Builder builder() {

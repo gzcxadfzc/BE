@@ -8,6 +8,7 @@ import java.util.List;
 @Repository
 public interface PageJpaRepository extends JpaRepository<PageJpaEntity, Long> {
 
-    List<PageJpaEntity> getAllByBookId(String bookId);
-    PageJpaEntity getById(Long id);
+        List<PageJpaEntity> findAllByBookId(String bookId);
+
+        PageJpaEntity findByBookId(String id);
 }

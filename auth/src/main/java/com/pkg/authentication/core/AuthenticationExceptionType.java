@@ -1,4 +1,4 @@
-package com.pkg.core;
+package com.pkg.authentication.core;
 
 public enum AuthenticationExceptionType {
 
@@ -6,6 +6,7 @@ public enum AuthenticationExceptionType {
     EXPIRED_CREDENTIAL,
     MISSING_CREDENTIAL,
     INVALID_CLAIM,
+    BAD_CREDENTIAL,
     UNKNOWN
     ;
 }

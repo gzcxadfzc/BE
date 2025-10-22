@@ -1,7 +1,7 @@
 package com.pkg.authentication.token;
 
-import com.pkg.core.AuthenticationException;
-import com.pkg.core.AuthenticationExceptionType;
+import com.pkg.authentication.core.AuthenticationException;
+import com.pkg.authentication.core.AuthenticationExceptionType;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -21,6 +21,6 @@ public class AccessTokenException extends AuthenticationException {
 	}
 
 	public static AccessTokenException invalid() {
-		return new AccessTokenException("유효하지 않은 토큰", AuthenticationExceptionType.INVALID_CREDENTIAL);
+		return new AccessTokenException("유효하지 않은 토큰", AuthenticationExceptionType.BAD_CREDENTIAL);
 	}
 }

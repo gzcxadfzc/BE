@@ -7,7 +7,7 @@ import java.util.List;
 @Repository
 public interface BookInProgressRepository {
 
-    List<BookInProgress> retrieveByMemberId(String memberId);
+    List<BookInProgress> retrieveByMemberId(Long memberId);
 
     BookInProgress retrieveById(String id);
 

@@ -1,7 +1,7 @@
 package com.pkg;
 
 import com.pkg.authentication.token.*;
-import com.pkg.core.AuthenticationExceptionType;
+import com.pkg.authentication.core.AuthenticationExceptionType;
 import com.pkg.support.RequestAttributeKey;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.DisplayName;
@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -22,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import static com.pkg.AuthTestConfig.*;
 
+@ActiveProfiles("test")
 @WebMvcTest
 @ContextConfiguration(classes = {
         AuthTestConfig.DummyController.class,
@@ -51,7 +53,7 @@ class JwtAuthenticationTest {
                     MemberPrincipal principal = (MemberPrincipal) result.getRequest().getAttribute(RequestAttributeKey.PRINCIPAL.name());
                     assertThat(principal).isEqualTo(VALID_ADMIN_PRINCIPAL);
                 })
-                .andExpect(jsonPath("$.memberId").value(VALID_ADMIN_PRINCIPAL.getMemberId().toString()))
+                .andExpect(jsonPath("$.id").value(VALID_ADMIN_PRINCIPAL.getMemberId().toString()))
                 .andExpect(jsonPath("$.role").value(VALID_ADMIN_PRINCIPAL.getRole().toString()))
                 .andDo(result -> System.out.println(result.getResponse().getContentAsString()));
         verify(filterChain, never()).doFilter(any(), any());
@@ -107,7 +109,7 @@ class JwtAuthenticationTest {
     @Test
     @DisplayName("shouldNotFilter가 아닌 URI에 대해 Bearer Token이 없어도 예외처리 되지 않아야 한다.")
     void shouldNotFilter_whenUriIsInExclusionList() throws Exception {
-        MockHttpServletRequestBuilder mockRequest = MockMvcRequestBuilders.get("/public");
+        MockHttpServletRequestBuilder mockRequest = MockMvcRequestBuilders.get("/public/any");
 
         mockMvc.perform(mockRequest) // 헤더 미설정
                 .andExpect(status().isOk())

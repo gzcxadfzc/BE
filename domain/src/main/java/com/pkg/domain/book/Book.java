@@ -1,14 +1,16 @@
 package com.pkg.domain.book;
 
+import com.pkg.domain.character.BookCharacter;
+
 import java.util.List;
 
 public record Book(
         String id,
-        String memberId,
+        Long memberId,
         List<BookPage> bookPages,
         String title,
         String author,
-        Character character
+        BookCharacter character
 ) {
 
     public static Builder builder() {
@@ -18,18 +20,18 @@ public record Book(
     public static class Builder {
 
         private String id;
-        private String memberId;
+        private Long memberId;
         private List<BookPage> bookPages;
         private String title;
         private String author;
-        private Character character;
+        private BookCharacter character;
 
         public Builder id(String id) {
             this.id = id;
             return this;
         }
 
-        public Builder memberId(String memberId) {
+        public Builder memberId(Long memberId) {
             this.memberId = memberId;
             return this;
         }
@@ -49,7 +51,7 @@ public record Book(
             return this;
         }
 
-        public Builder character(Character character) {
+        public Builder character(BookCharacter character) {
             this.character = character;
             return this;
         }

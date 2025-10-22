@@ -1,18 +1,34 @@
 package com.pkg.redis;
 
+import com.pkg.domain.character.BookCharacter;
+
 public record BookInProgressRedisEntity(
         String id,
-        String memberId,
+        Long memberId,
         String backgroundInfo,
-        BookCharacter character,
+        BookCharacterRedis character,
         int storyLength
 ) {
-    record BookCharacter(
+
+    public BookCharacter toBookCharacter() {
+        return new BookCharacter(
+                this.character.id,
+                this.memberId,
+                this.character.name,
+                this.character.appearanceKeywords,
+                this.character.personality,
+                this.character.userDescription,
+                this.character.imageUrl
+        );
+    }
+
+    record BookCharacterRedis (
         Long id,
         String name,
         String userDescription,
         String appearanceKeywords,
-        String personality
+        String personality,
+        String imageUrl
     ) {
     }
 }

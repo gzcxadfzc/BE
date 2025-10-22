@@ -1,24 +1,24 @@
 package com.pkg.domain.bookprogress;
 
 import com.pkg.domain.exception.DomainException;
-import com.pkg.domain.exception.ExceptionCode;
+import com.pkg.domain.exception.DomainExceptionCode;
 
 public class BookProgressException extends DomainException {
 
-    public BookProgressException(ExceptionCode code, String message) {
+    public BookProgressException(DomainExceptionCode code, String message) {
         super(code, message);
     }
 
     public static BookProgressException notFound(String id) {
         return new BookProgressException(
-                ExceptionCode.E404,
+                DomainExceptionCode.E404,
                 id + " not found."
         );
     }
 
     public static BookProgressException forbiddenResource() {
         return new BookProgressException(
-                ExceptionCode.E403,
+                DomainExceptionCode.E403,
                 "not authorized"
         );
     }

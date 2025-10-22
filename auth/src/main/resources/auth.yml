@@ -6,16 +6,49 @@ auth:
 
 ---
 spring.config.activate.on-profile:
-  - local
+  - test-in-memory
   - test
+  - test-local
 
 auth:
   jwt:
     crypto:
-      private-key: -----BEGIN PRIVATE KEY----- MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCR+m0CkBcA3KFb k+lfHOsbw71JMdcTqjkl/oimoqFRZpPIFHclL6eU6fOXFbZonhWvrInzwzkyVT3V rRwPHsrQQ9OuAForLa95xgRT1X25eH4X0O444kqPE1ZXi7tDL+5pB+pI8GaZIFwo nLtgmdLedOszkFBjphlaB2r8A+AqHJgv6tlWy6mVglN+9jWoSR9I6G019oQUHkmr Yg+UgX1Ajg3OwbGgCl1YUNCzMUXO3b0vmuGB22VPxY4cZMhVAQBZLaATxlrQ+MK/ m9/+L7EV7DrkiI9d0Pk+oA9m2sqlhaYg2ccvBixZPjRLEXi4phlywZ4n7wtuHV4i C1koiH+PAgMBAAECggEAa6NAJhehHp2QzTnvZpaoNbzLIeGCOZnWsdFRaa2ZTbBZ X7rXb7AH3aH0X38/FT0buIF85yUYU6jPA3O1sOB/o7mfqDnSQuxY6227WyWcotna AC2qun8BgyY7ECqUViJNpVyUwFujC131Fm0bLUu/VRDZLRhIbnHXV68Ij/M7o1B8 XTKIIH9JU55P97zvW/57xbIzkW4bMLIVEOdDxj4oKtWxuaQiZ8g/gqvIXj0kcMN+ 0BYO6iBS5c2xSMGHaJhU/UxmQOqvc6+uoSA3P1vRxDYi8sH794Mk6Sj0eSB3YsJn /YK3I0Vpdh01s6Sh6sqqKIMs3dKMbZxtYpFzk4BIIQKBgQDRNFckYc0Q+ZGxt8Sx XN5euBOnYSpkF0knJLDfF++sGUIaBSi5aJvoRyT0bErijH8L48BFsD2vmbpr0EwB d8jYrJqgPvKBumQsUMSS2MPDLRThT9y2zwRztaZyDmK+Bv/KjoHG7y0Ty4Y2Blaj NKAQbQ4zftvXz9WCJMouaJvJQwKBgQCyoZECONPowbP3YERxymEnfG+E0kRQI2nR X2dRAXcFCxUhSV18+WS2qCJ/2vhCFhqL+37nAEKLMS1cc597kFI17TKAR6yJvTm7 iGyAEZeo/58NP6Exp7PE5HcCml2kujAbcI1VYaoyqZy46HngpMfbnaZACp33CMy/ v3hFh3l1xQKBgEl7xRA2ej14LEDsd96E7GcA6YZljupRc5SYQrhaRAmDZcCWB1P4 9qqEMurYDwW8q/OVMDhKS6Cesuij5c6uMJJLLpUTB0OiIQWf6Sxbj4fDEg6Catib psiuCaUOgIiXFMolfFhQMtk9KAtZ9pylI4Qhild0O+x2SFzKZ2odvHrZAoGAXB5v zoqJ1Z2W9nqBsYDhi2BjjkZ1DjLFDkE54Y901nf5pJnWCW3/Xybj67V7k3EcrZW7 wtridi+dKfFCjJFHpCG3imnr83hO/oQDGCR6Zp+0YTuwIBBQ57e+G+yJYDrYNj5b 1G0yPUA03zKcL5oqqvno01vmTJAQLs5J8ulDXNUCgYEAq8W0+4cy9r1S2dCtiBmk JPk/LsYH7+k/8a8EeU38dz0D8iOwYjQV6dUWcdNBsztP1NTBxImOwiYW+/I9TjN2 eI2sS0tj9RPLsNF1Mp4XlY2lMKbDdYaMxM3YSPIxAIkpwsXWSv8cFmJ6FsQ1SNyf gZIuUgoEFvbwCnwLD70uYEc= -----END PRIVATE KEY-----
-      public-key: -----BEGIN PUBLIC KEY----- MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkfptApAXANyhW5PpXxzr G8O9STHXE6o5Jf6IpqKhUWaTyBR3JS+nlOnzlxW2aJ4Vr6yJ88M5MlU91a0cDx7K 0EPTrgBaKy2vecYEU9V9uXh+F9DuOOJKjxNWV4u7Qy/uaQfqSPBmmSBcKJy7YJnS 3nTrM5BQY6YZWgdq/APgKhyYL+rZVsuplYJTfvY1qEkfSOhtNfaEFB5Jq2IPlIF9 QI4NzsGxoApdWFDQszFFzt29L5rhgdtlT8WOHGTIVQEAWS2gE8Za0PjCv5vf/i+x Few65IiPXdD5PqAPZtrKpYWmINnHLwYsWT40SxF4uKYZcsGeJ+8Lbh1eIgtZKIh/ jwIDAQAB -----END PUBLIC KEY-----
-
----
-spring.config.activate.on-profile:
-  - local-dev
-  - dev
+      private-key: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCeDfWaDgJXIR2v
+        Mxco3Azl5CidwX8L5GXa/nSqUaEAPJOanRYgj3HDsylKMkTT4yUGTuZDlOYC0WAW
+        R7cJ6mHAZeW+RY8s6Rzkporjjdlex0pAukIs/RLTJZCXNt/+UG8k8XkcEGxJYKPF
+        PwcSKMHJjezG167B9RmycZ5RyMNTXU/b6miim0qs8KptO7VLm3AjB80e9gt3mmaO
+        XMPCHdrOpuEBuqe7U/flodxN9unXnI+stqmrjGk3EajPsZXBqZlcFq7sveJgPz+y
+        50KTq1VP9Y/9Awd229nONOMa+H1xeL1XwjZ0L/diOAia5uajrsO6LrxrjNuaWCfH
+        NgW/fl6JAgMBAAECggEAYTA+ROO2ZrNTWIc3B4YAXGCm5RK1t69TPo1XWd/l+4pE
+        TT+o+o6aKveBPUGZ9xzmiHF9wDLQGQ18Y1bn463/O9qsogqN1tTlUmhiYTi5YEF1
+        lEW0KYvYxoOD3Kf+ppf5MCNYEHy8yYYmTkTKaU0slG60GTVJHbVEfujErI+iJCD2
+        TotS6L/BhhxB3BMLu8Ikzr/eACuvKreZnIN1TlnJJqQ2CuLAocW8/ol0qOhiD+Do
+        AUrZz0erEbIg35SKo8ach4/ULvC+TCPtKkYceZS99+e5LIODsQXG9gnK7kEUQQnM
+        JE/FodW04f0Xc91IJiP+z+5JbzVKS3Kf9neJNg+z3QKBgQDQhUpsmhNNAckYseV8
+        AS6W7pdig/r4KkquKL/7EyIm41oSPFhybzzBJvvw5l6crF5MuINhNZgM2Fh/eLzm
+        wQb/bqBDYNmYz0yFQOaP0+XAKFgoRMqUo4BVMszC6q10T6a3AdsoIM3V9yGf9HoO
+        ik9eLJHwnhS2DJAIPNI4h0aPDwKBgQDCCvzmXUuBwdwe4e9vWhQc6R6SfHpdbUw8
+        rlRIp/nOe46XCjBjc4ZVYZMW5eU2Ju+4Q7jWcerrNDlE35ICMwjPsbVjSiZowF5G
+        Qa1peYy7AVlp50NKfXZQIU5+WGcfjkUs9un43PHjxoNaA6GGhHZhYUpU8AQbxCqH
+        BCBTx/g45wKBgHAgjLGzdFd/c0yFNLqmxA/DQsJl6AmUbE4UeY+gbUfuD1wo+QKo
+        EEppFScoKY4kHh0xRux57kZR+9yn5yRKfeHS8fjpVnkWV7Z7/L8wmaXny+fzfd/J
+        v9OQmozhtt4JisN0Cw4b/bNlzb3+r7er5hvk6aEy0D5IqRbU5dIh4+4/AoGBAIgT
+        eoz2Kghh8cK6gNWe3vHzTVw+7PTtvAPl4PdezOFPZoxnOc3UawUfOy5YpCgYoA2h
+        eFLyamLtKagx/MuMDIbSQbjSfCMDnFk6n6iS8+0EojaRVnA7kafZ45jY1+CaPcqt
+        kSDTmNI6GU0btL+Hzxi1SJJOCyOJqqUqcJ0wY9NLAoGBAIxqJr5A7EIRo6AyuZnU
+        E6ujgjitvIhZdW8pXXfnhujANCae4aQKX/6BkK0aM8y+iGqYGnYaGSj/Mhduc6cE
+        JoS3DrLi+PqqPhnT9UZF+uG2jrssTWdn2AJX21XofvOUEPxtzEr3Cub5D9cHjXdY
+        LnJEDnmKwxCqAXT66x+CFj0e
+        -----END PRIVATE KEY-----
+      public-key: |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAng31mg4CVyEdrzMXKNwM
+        5eQoncF/C+Rl2v50qlGhADyTmp0WII9xw7MpSjJE0+MlBk7mQ5TmAtFgFke3Ceph
+        wGXlvkWPLOkc5KaK443ZXsdKQLpCLP0S0yWQlzbf/lBvJPF5HBBsSWCjxT8HEijB
+        yY3sxteuwfUZsnGeUcjDU11P2+pooptKrPCqbTu1S5twIwfNHvYLd5pmjlzDwh3a
+        zqbhAbqnu1P35aHcTfbp15yPrLapq4xpNxGoz7GVwamZXBau7L3iYD8/sudCk6tV
+        T/WP/QMHdtvZzjTjGvh9cXi9V8I2dC/3YjgImubmo67Dui68a4zbmlgnxzYFv35e
+        iQIDAQAB
+        -----END PUBLIC KEY-----

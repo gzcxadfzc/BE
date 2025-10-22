@@ -1,6 +1,6 @@
 package com.pkg.domain.exception;
 
-public enum ExceptionCode {
+public enum DomainExceptionCode {
     E400,
     E401,
     E402,

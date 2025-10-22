@@ -1,4 +1,4 @@
-package com.pkg.core;
+package com.pkg.authentication.core;
 
 public abstract class Credential {
 

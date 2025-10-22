@@ -1,14 +1,17 @@
 package com.pkg.support;
 
 import com.pkg.authentication.token.AccessToken;
-import com.pkg.authentication.token.AccessTokenAuthenticator;
 import com.pkg.authentication.token.MemberPrincipal;
-import com.pkg.core.AuthenticationException;
-import com.pkg.core.Authenticator;
+import com.pkg.authentication.core.AuthenticationException;
+import com.pkg.authentication.core.Authenticator;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.util.AntPathMatcher;
+import org.springframework.util.PathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
@@ -18,6 +21,8 @@ import java.util.List;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+    private static final PathMatcher PATH_MATCHER = new AntPathMatcher();
     private final List<String> shouldNotFilterUriList;
     private final Authenticator<AccessToken, MemberPrincipal> authenticator;
     private final HandlerExceptionResolver handlerExceptionResolver;
@@ -34,6 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        log.info("JwtAuthenticationFilter invoked: {}", request.getRequestURI());
         try {
             String bearerToken = parseBearerToken(request);
             MemberPrincipal memberPrincipal = authenticator.authenticate(new AccessToken(bearerToken));
@@ -56,6 +62,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String requestURI = request.getRequestURI();
         return shouldNotFilterUriList.stream()
-                .anyMatch(requestURI::startsWith);
+                .anyMatch(pattern -> PATH_MATCHER.match(pattern, requestURI));
     }
 }

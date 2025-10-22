@@ -1,10 +1,9 @@
 package com.pkg.domain.character;
 
-import com.pkg.domain.member.Actor;
 
 public record BookCharacter(
-        String id,
-        Actor owner,
+        Long id,
+        Long userId,
         String name,
         String appearanceKeywords,
         String personality,

@@ -1,4 +1,4 @@
-package com.pkg.core;
+package com.pkg.authentication.core;
 
 public class AuthenticationException extends RuntimeException {
 
@@ -24,6 +24,13 @@ public class AuthenticationException extends RuntimeException {
         return new AuthenticationException(
                 message,
                 AuthenticationExceptionType.MISSING_CREDENTIAL
+        );
+    }
+
+    public static AuthenticationException invalidCredential(String message) {
+        return new AuthenticationException(
+                message,
+                AuthenticationExceptionType.INVALID_CREDENTIAL
         );
     }
 }

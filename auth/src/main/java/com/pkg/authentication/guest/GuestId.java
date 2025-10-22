@@ -1,7 +1,7 @@
 package com.pkg.authentication.guest;
 
-import com.pkg.core.Credential;
-import com.pkg.core.CredentialType;
+import com.pkg.authentication.core.Credential;
+import com.pkg.authentication.core.CredentialType;
 
 public class GuestId extends Credential {
 
@@ -13,7 +13,7 @@ public class GuestId extends Credential {
     }
 
     public static GuestId of(String id) {
-        return new GuestId(CredentialType.ID, id);
+        return new GuestId(CredentialType.USERNAME_PASSWORD, id);
     }
 
     public String getId() {

@@ -27,6 +27,6 @@ public enum OpenAiModel {
         return Arrays.stream(values())
                 .filter(model -> model.value.equals(target))
                 .findFirst()
-                .orElseThrow(() -> new OpenAiInternalException("no such model name:" + target));
+                .orElseThrow(() -> new OpenAiInternalException("no such model username:" + target));
     }
 }

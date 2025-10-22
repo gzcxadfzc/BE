@@ -1,6 +1,6 @@
 package com.pkg.authentication.token;
 
-import com.pkg.core.Authenticator;
+import com.pkg.authentication.core.Authenticator;
 import org.springframework.stereotype.Component;
 
 @Component

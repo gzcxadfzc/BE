@@ -1,5 +1,6 @@
 package com.pkg.domain.book;
 
+import com.pkg.domain.member.Actor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -7,11 +8,9 @@ import java.util.List;
 @Repository
 public interface BookRepository {
 
-    void save(Book book);
+    Book save(Book book);
 
     Book retrieveById(String bookId);
 
-    List<Book> retrieveByMemberId(long userId);
-
-    List<BookThumbnail> retrieveThumbnailsByMemberId(long userId);
+    List<BookThumbnail> retrieveThumbnailsByUser(Actor currentUser);
 }

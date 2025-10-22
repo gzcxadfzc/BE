@@ -1,6 +1,7 @@
 package com.pkg.domain.bookprogress;
 
 import com.pkg.domain.book.BookPage;
+import com.pkg.domain.character.BookCharacter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,7 +10,7 @@ public record BookInProgress(
     String id,
     Long ownerId,
     String backgroundInfo,
-    Character character,
+    BookCharacter character,
     List<BookPage> previousPages
 ) {
     public BookInProgress addBookPage(BookPage bookPage) {

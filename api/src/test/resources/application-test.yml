@@ -1,0 +1,5 @@
+spring:
+  config:
+    import:
+      - storage.yml
+      - auth.yml

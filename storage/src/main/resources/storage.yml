@@ -1,41 +1,16 @@
-spring.config.activate.on-profile: prod
-spring:
-  jpa:
-    open-in-view: false
-    hibernate:
-      ddl-auto: validate
-  redis:
-    port: ${REDIS_PORT}
-    host: ${REDIS_HOST}
-storage:
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    jdbc-url: ${JDBC_URL}
-    username: ${MYSQL_USERNAME}
-    password: ${MYSQL_PASSWORD}
-
----
-spring.config.activate.on-profile: test
-spring:
-  jpa:
-    open-in-view: false
-    hibernate:
-      ddl-auto: validate
-  redis:
-    port: 6379
-    host: 127.0.0.1
-
----
-spring.config.activate.on-profile: test-in-memory
 spring:
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: create
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+        show_sql: true
   redis:
-    port: 6379
     host: 127.0.0.1
----
+    port: 6379
 
 storage:
   s3:
@@ -43,12 +18,12 @@ storage:
     region: ap-northeast-2
     secret-key: ${AWS_SECRET_KEY}
     access-key: ${AWS_ACCESS_KEY}
-    cdn: https://d2ojpr6lej9d5i.cloudfront.net
+    cdn: https://d2ojpr6lej9d5i.cloudfront.ne
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    jdbc-url: jdbc:mysql://localhost:3306/little-writer-v2
-    username: root
-    password: 7631
+    driver-class-name: org.h2.Driver
+    jdbcUrl: jdbc:h2:mem:littlewriter;MODE=MYSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: sa
     data-source-properties:
       cachePrepStmts: true
       prepStmtCacheSize: 250
@@ -60,11 +35,113 @@ storage:
       cacheServerConfiguration: true
       elideSetAutoCommits: true
       maintainTimeStats: false
-    hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
-      auto-commit: true
-      pool-name: LittleWriterHikariCP
+
+---
+
+# ==========================================
+# 🟢 운영 환경 (Production)
+# ==========================================
+spring.config.activate.on-profile: prod
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  redis:
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
+
+storage:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    jdbc-url: ${JDBC_URL}
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
+  s3:
+    bucket: littlewriter
+    region: ap-northeast-2
+    secret-key: ${AWS_SECRET_KEY}
+    access-key: ${AWS_ACCESS_KEY}
+    cdn: https://d2ojpr6lej9d5i.cloudfront.net
+
+---
+
+# ==========================================
+# 🧪 테스트 (기본 테스트 환경, Redis Local)
+# ==========================================
+spring.config.activate.on-profile: test
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  redis:
+    host: 127.0.0.1
+    port: 6379
+
+storage:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    jdbc-url: jdbc:mysql://localhost:3306/little-writer
+    username: root
+    password: 7631
+
+---
+
+# ==========================================
+# 💻 테스트-로컬 (로컬 DB로 통합테스트)
+# ==========================================
+spring.config.activate.on-profile: test-local
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+
+  redis:
+    host: 127.0.0.1
+    port: 6379
+
+storage:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    jdbc-url: jdbc:mysql://localhost:3306/little-writer-v2?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: root
+    password: 7631
+
+---
+
+# ==========================================
+# 🧩 테스트-인메모리 (H2, 빠른 단위 테스트)
+# ==========================================
+spring.config.activate.on-profile: test-in-memory
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+        show_sql: true
+        hbm2ddl.auto: create
+  redis:
+    host: 127.0.0.1
+    port: 6379
+  h2:
+    console:
+      enabled: true
+
+storage:
+  datasource:
+    driver-class-name: org.h2.Driver
+    jdbcUrl: jdbc:h2:mem:littlewriter;MODE=MYSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: as
+    password: sa
+
+---

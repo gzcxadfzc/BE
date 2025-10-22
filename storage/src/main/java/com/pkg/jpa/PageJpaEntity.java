@@ -1,5 +1,6 @@
 package com.pkg.jpa;
 
+import com.pkg.domain.book.BookPage;
 import jakarta.persistence.*;
 
 @Entity
@@ -17,4 +18,59 @@ public class PageJpaEntity {
     private String image_url;
     @Column(name = "page_number", nullable = false)
     private int pageNumber;
+
+    public BookPage toBookPage() {
+        return new BookPage(
+                this.context,
+                this.image_url,
+                this.pageNumber
+        );
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private Long id;
+        private String bookId;
+        private String context;
+        private String imageUrl;
+        private int pageNumber;
+
+        public Builder id(Long id) {
+            this.id = id;
+            return this;
+        }
+
+        public Builder bookId(String bookId) {
+            this.bookId = bookId;
+            return this;
+        }
+
+        public Builder context(String context) {
+            this.context = context;
+            return this;
+        }
+
+        public Builder imageUrl(String imageUrl) {
+            this.imageUrl = imageUrl;
+            return this;
+        }
+
+        public Builder pageNumber(int pageNumber) {
+            this.pageNumber = pageNumber;
+            return this;
+        }
+
+        public PageJpaEntity build() {
+            PageJpaEntity page = new PageJpaEntity();
+            page.id = this.id;
+            page.bookId = this.bookId;
+            page.context = this.context;
+            page.image_url = this.imageUrl;
+            page.pageNumber = this.pageNumber;
+            return page;
+        }
+    }
 }

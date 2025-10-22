@@ -54,16 +54,18 @@ class RedisRepositoryTest {
     void testBookInProgressPutAndGet() {
         // Given
         Long userId = 1L;
-        BookInProgressRedisEntity.BookCharacter character = new BookInProgressRedisEntity.BookCharacter(
+        BookInProgressRedisEntity.BookCharacterRedis character = new BookInProgressRedisEntity.BookCharacterRedis(
                 100L,
                 "테스트 캐릭터",
                 "용감한 소년",
                 "검은 머리, 파란 눈",
-                "활발하고 긍정적인 성격"
+                "활발하고 긍정적인 성격",
+                "example.com"
         );
+
         BookInProgressRedisEntity entity = new BookInProgressRedisEntity(
                 "book-id-1",
-                String.valueOf(userId),
+                userId,
                 "마법의 숲에서의 모험",
                 character,
                 10
@@ -76,7 +78,7 @@ class RedisRepositoryTest {
         // Then
         assertThat(retrieved).isNotNull();
         assertThat(retrieved.id()).isEqualTo("book-id-1");
-        assertThat(retrieved.memberId()).isEqualTo(String.valueOf(userId));
+        assertThat(retrieved.memberId()).isEqualTo(userId);
         assertThat(retrieved.backgroundInfo()).isEqualTo("마법의 숲에서의 모험");
         assertThat(retrieved.storyLength()).isEqualTo(10);
         assertThat(retrieved.character()).isNotNull();
@@ -95,11 +97,11 @@ class RedisRepositoryTest {
         // Given
         Long userId = 1L;
         String testBookId = "test-book-id-1";
-        BookInProgressRedisEntity.BookCharacter character = new BookInProgressRedisEntity.BookCharacter(
-                100L, "캐릭터", "설명", "외모", "성격"
+        BookInProgressRedisEntity.BookCharacterRedis character = new BookInProgressRedisEntity.BookCharacterRedis(
+                100L, "캐릭터", "설명", "외모", "성격", "example.com"
         );
         BookInProgressRedisEntity entity = new BookInProgressRedisEntity(
-                testBookId, String.valueOf(userId), "배경", character, 5
+                testBookId, userId, "배경", character, 5
         );
 
         // When - 저장 전
@@ -124,11 +126,11 @@ class RedisRepositoryTest {
         // Given
         Long userId = 1L;
         String testBookId = "test-book-id-1";
-        BookInProgressRedisEntity.BookCharacter character = new BookInProgressRedisEntity.BookCharacter(
-                100L, "캐릭터", "설명", "외모", "성격"
+        BookInProgressRedisEntity.BookCharacterRedis character = new BookInProgressRedisEntity.BookCharacterRedis(
+                100L, "캐릭터", "설명", "외모", "성격", "example.com"
         );
         BookInProgressRedisEntity entity = new BookInProgressRedisEntity(
-                testBookId, String.valueOf(userId), "배경", character, 5
+                testBookId, userId, "배경", character, 5
         );
         bookInProgressRedisRepository.put(entity);
 
@@ -152,18 +154,18 @@ class RedisRepositoryTest {
         String testBookId2 = "test-book-id-2";
 
 
-        BookInProgressRedisEntity.BookCharacter character1 = new BookInProgressRedisEntity.BookCharacter(
-                100L, "캐릭터1", "설명1", "외모1", "성격1"
+        BookInProgressRedisEntity.BookCharacterRedis character1 = new BookInProgressRedisEntity.BookCharacterRedis(
+                100L, "캐릭터1", "설명1", "외모1", "성격1", "example.com"
         );
         BookInProgressRedisEntity entity1 = new BookInProgressRedisEntity(
-                testBookId1, String.valueOf(userId1), "배경1", character1, 5
+                testBookId1, userId1, "배경1", character1, 5
         );
 
-        BookInProgressRedisEntity.BookCharacter character2 = new BookInProgressRedisEntity.BookCharacter(
-                200L, "캐릭터2", "설명2", "외모2", "성격2"
+        BookInProgressRedisEntity.BookCharacterRedis character2 = new BookInProgressRedisEntity.BookCharacterRedis(
+                200L, "캐릭터2", "설명2", "외모2", "성격2", "example2.com"
         );
         BookInProgressRedisEntity entity2 = new BookInProgressRedisEntity(
-                testBookId2, String.valueOf(userId2), "배경2", character2, 10
+                testBookId2, userId2, "배경2", character2, 10
         );
 
         // When
@@ -204,16 +206,16 @@ class RedisRepositoryTest {
     @DisplayName("BookInProgress: findByMemberId로 특정 회원의 모든 진행중인 책 조회")
     void testFindByMemberId() {
         // Given
-        String memberId = "member-123";
-        BookInProgressRedisEntity.BookCharacter character1 = new BookInProgressRedisEntity.BookCharacter(
-                100L, "캐릭터1", "설명1", "외모1", "성격1"
+        Long memberId = 123L;
+        BookInProgressRedisEntity.BookCharacterRedis character1 = new BookInProgressRedisEntity.BookCharacterRedis(
+                100L, "캐릭터1", "설명1", "외모1", "성격1", "example.com"
         );
         BookInProgressRedisEntity entity1 = new BookInProgressRedisEntity(
                 "book-id-1", memberId, "배경1", character1, 5
         );
 
-        BookInProgressRedisEntity.BookCharacter character2 = new BookInProgressRedisEntity.BookCharacter(
-                200L, "캐릭터2", "설명2", "외모2", "성격2"
+        BookInProgressRedisEntity.BookCharacterRedis character2 = new BookInProgressRedisEntity.BookCharacterRedis(
+                200L, "캐릭터2", "설명2", "외모2", "성격2", "example.com"
         );
         BookInProgressRedisEntity entity2 = new BookInProgressRedisEntity(
                 "book-id-2", memberId, "배경2", character2, 10
@@ -240,7 +242,7 @@ class RedisRepositoryTest {
     @DisplayName("BookInProgress: findByMemberId로 존재하지 않는 회원 조회 시 빈 리스트 반환")
     void testFindByMemberIdNonExistent() {
         // Given
-        String nonExistentMemberId = "non-existent-member";
+        Long nonExistentMemberId = -1L;
 
         // When
         List<BookInProgressRedisEntity> foundBooks = bookInProgressRedisRepository.findByMemberId(nonExistentMemberId);
@@ -256,25 +258,25 @@ class RedisRepositoryTest {
     @DisplayName("BookInProgress: findByMemberId로 여러 회원의 책을 독립적으로 조회")
     void testFindByMemberIdMultipleMembers() {
         // Given
-        String memberId1 = "member-111";
-        String memberId2 = "member-222";
+        Long memberId1 = 111L;
+        Long memberId2 = 222L;
 
-        BookInProgressRedisEntity.BookCharacter character1 = new BookInProgressRedisEntity.BookCharacter(
-                100L, "캐릭터1", "설명1", "외모1", "성격1"
+        BookInProgressRedisEntity.BookCharacterRedis character1 = new BookInProgressRedisEntity.BookCharacterRedis(
+                100L, "캐릭터1", "설명1", "외모1", "성격1", "example.com"
         );
         BookInProgressRedisEntity entity1 = new BookInProgressRedisEntity(
                 "book-id-1", memberId1, "배경1", character1, 5
         );
 
-        BookInProgressRedisEntity.BookCharacter character2 = new BookInProgressRedisEntity.BookCharacter(
-                200L, "캐릭터2", "설명2", "외모2", "성격2"
+        BookInProgressRedisEntity.BookCharacterRedis character2 = new BookInProgressRedisEntity.BookCharacterRedis(
+                200L, "캐릭터2", "설명2", "외모2", "성격2", "example.com"
         );
         BookInProgressRedisEntity entity2 = new BookInProgressRedisEntity(
                 "book-id-2", memberId1, "배경2", character2, 10
         );
 
-        BookInProgressRedisEntity.BookCharacter character3 = new BookInProgressRedisEntity.BookCharacter(
-                300L, "캐릭터3", "설명3", "외모3", "성격3"
+        BookInProgressRedisEntity.BookCharacterRedis character3 = new BookInProgressRedisEntity.BookCharacterRedis(
+                300L, "캐릭터3", "설명3", "외모3", "성격3", "example.com"
         );
         BookInProgressRedisEntity entity3 = new BookInProgressRedisEntity(
                 "book-id-3", memberId2, "배경3", character3, 15
@@ -308,16 +310,16 @@ class RedisRepositoryTest {
     @DisplayName("BookInProgress: 책 삭제 후 findByMemberId 결과에 반영되는지 확인")
     void testFindByMemberIdAfterDelete() {
         // Given
-        String memberId = "member-123";
-        BookInProgressRedisEntity.BookCharacter character1 = new BookInProgressRedisEntity.BookCharacter(
-                100L, "캐릭터1", "설명1", "외모1", "성격1"
+        Long memberId = 123L;
+        BookInProgressRedisEntity.BookCharacterRedis character1 = new BookInProgressRedisEntity.BookCharacterRedis(
+                100L, "캐릭터1", "설명1", "외모1", "성격1", "example.com"
         );
         BookInProgressRedisEntity entity1 = new BookInProgressRedisEntity(
                 "book-id-1", memberId, "배경1", character1, 5
         );
 
-        BookInProgressRedisEntity.BookCharacter character2 = new BookInProgressRedisEntity.BookCharacter(
-                200L, "캐릭터2", "설명2", "외모2", "성격2"
+        BookInProgressRedisEntity.BookCharacterRedis character2 = new BookInProgressRedisEntity.BookCharacterRedis(
+                200L, "캐릭터2", "설명2", "외모2", "성격2", "example.com"
         );
         BookInProgressRedisEntity entity2 = new BookInProgressRedisEntity(
                 "book-id-2", memberId, "배경2", character2, 10
@@ -370,14 +372,14 @@ class RedisRepositoryTest {
         assertThat(retrievedPages).isNotNull();
         assertThat(retrievedPages).hasSize(3);
 
-        assertThat(retrievedPages.get(0).Context()).isEqualTo("첫 번째 페이지 내용");
+        assertThat(retrievedPages.get(0).context()).isEqualTo("첫 번째 페이지 내용");
         assertThat(retrievedPages.get(0).pageNumber()).isEqualTo(1);
         assertThat(retrievedPages.get(0).imageUrl()).isEqualTo("http://example.com/image1.jpg");
 
-        assertThat(retrievedPages.get(1).Context()).isEqualTo("두 번째 페이지 내용");
+        assertThat(retrievedPages.get(1).context()).isEqualTo("두 번째 페이지 내용");
         assertThat(retrievedPages.get(1).pageNumber()).isEqualTo(2);
 
-        assertThat(retrievedPages.get(2).Context()).isEqualTo("세 번째 페이지 내용");
+        assertThat(retrievedPages.get(2).context()).isEqualTo("세 번째 페이지 내용");
         assertThat(retrievedPages.get(2).pageNumber()).isEqualTo(3);
 
         System.out.println("BookPage append and retrieveAll operations successful");
@@ -463,13 +465,13 @@ class RedisRepositoryTest {
 
         // Then
         assertThat(book1Pages).hasSize(2);
-        assertThat(book1Pages.get(0).Context()).isEqualTo("책1 페이지1");
-        assertThat(book1Pages.get(1).Context()).isEqualTo("책1 페이지2");
+        assertThat(book1Pages.get(0).context()).isEqualTo("책1 페이지1");
+        assertThat(book1Pages.get(1).context()).isEqualTo("책1 페이지2");
 
         assertThat(book2Pages).hasSize(3);
-        assertThat(book2Pages.get(0).Context()).isEqualTo("책2 페이지1");
-        assertThat(book2Pages.get(1).Context()).isEqualTo("책2 페이지2");
-        assertThat(book2Pages.get(2).Context()).isEqualTo("책2 페이지3");
+        assertThat(book2Pages.get(0).context()).isEqualTo("책2 페이지1");
+        assertThat(book2Pages.get(1).context()).isEqualTo("책2 페이지2");
+        assertThat(book2Pages.get(2).context()).isEqualTo("책2 페이지3");
 
         System.out.println("BookPage multiple books operations successful");
     }
@@ -494,7 +496,7 @@ class RedisRepositoryTest {
         assertThat(retrievedPages).hasSize(5);
         for (int i = 0; i < 5; i++) {
             assertThat(retrievedPages.get(i).pageNumber()).isEqualTo(i + 1);
-            assertThat(retrievedPages.get(i).Context()).isEqualTo("페이지 " + (i + 1));
+            assertThat(retrievedPages.get(i).context()).isEqualTo("페이지 " + (i + 1));
         }
 
         System.out.println("BookPage order preservation operation successful");
@@ -519,7 +521,7 @@ class RedisRepositoryTest {
         // Then
         assertThat(book1Pages).isEmpty();
         assertThat(book2Pages).hasSize(1);
-        assertThat(book2Pages.get(0).Context()).isEqualTo("책2 내용");
+        assertThat(book2Pages.get(0).context()).isEqualTo("책2 내용");
 
         System.out.println("BookPage delete specific book operation successful");
     }

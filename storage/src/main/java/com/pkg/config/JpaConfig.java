@@ -3,6 +3,7 @@ package com.pkg.config;
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.boot.autoconfigure.orm.jpa.JpaProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
@@ -43,7 +44,7 @@ public class JpaConfig {
     @Bean("storageEntityManagerFactory")
     public LocalContainerEntityManagerFactoryBean entityManagerFactory(
             @Qualifier("storageDataSource") DataSource dataSource,
-            CoreJpaProperties jpaProperties
+            JpaProperties jpaProperties
     ) {
         LocalContainerEntityManagerFactoryBean em =
                 new LocalContainerEntityManagerFactoryBean();
@@ -56,16 +57,21 @@ public class JpaConfig {
         return em;
     }
 
+//    @Bean
+//    @ConfigurationProperties(prefix = "spring.jpa")
+//    public CoreJpaProperties jpaProperties() {
+//        return new CoreJpaProperties();
+//    }
+//
+//    public static class CoreJpaProperties {
+//        private final Map<String, Object> properties = new HashMap<>();
+//        public Map<String, Object> getProperties() {
+//            return properties;
+//        }
+//    }
     @Bean
     @ConfigurationProperties(prefix = "spring.jpa")
-    public CoreJpaProperties jpaProperties() {
-        return new CoreJpaProperties();
-    }
-
-    public static class CoreJpaProperties {
-        private final Map<String, Object> properties = new HashMap<>();
-        public Map<String, Object> getProperties() {
-            return properties;
-        }
+    public JpaProperties jpaProperties() {
+        return new JpaProperties();
     }
 }

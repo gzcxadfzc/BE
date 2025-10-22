@@ -7,5 +7,10 @@ dependencies {
     runtimeOnly("com.mysql:mysql-connector-j")
     runtimeOnly("com.h2database:h2")
 
+    testImplementation(project(":domain"))
+    testImplementation(project(":auth"))
+
     compileOnly(project(":domain"))
+    compileOnly(project(":auth"))
+
 }
