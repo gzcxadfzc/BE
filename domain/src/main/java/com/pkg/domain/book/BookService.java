@@ -1,6 +1,7 @@
 package com.pkg.domain.book;
 
 import com.pkg.domain.bookprogress.CompleteBookRequest;
+import com.pkg.domain.common.PageResult;
 import com.pkg.domain.member.Actor;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,10 @@ public class BookService {
 
     public List<BookThumbnail> retrieveBookThumbnailsByOwner(Actor currentUser) {
         return bookRepository.retrieveThumbnailsByUser(currentUser);
+    }
+
+    public PageResult<BookThumbnail> retrieveBookThumbnails(BookRetrieveQuery query) {
+        return bookRepository.retrieveThumbnails(query);
     }
 
     public Book retrieveByBookId(String bookId) {

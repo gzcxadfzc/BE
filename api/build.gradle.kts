@@ -1,5 +1,6 @@
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     implementation(project(":auth"))
     implementation(project(":domain"))
@@ -9,8 +10,6 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-data-jpa")
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis")
     testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-
 }
 
 

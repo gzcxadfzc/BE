@@ -1,5 +1,6 @@
 package com.pkg.domain.book;
 
+import com.pkg.domain.common.PageResult;
 import com.pkg.domain.member.Actor;
 import org.springframework.stereotype.Repository;
 
@@ -13,4 +14,6 @@ public interface BookRepository {
     Book retrieveById(String bookId);
 
     List<BookThumbnail> retrieveThumbnailsByUser(Actor currentUser);
+
+    PageResult<BookThumbnail> retrieveThumbnails(BookRetrieveQuery bookRetrieveQuery);
 }

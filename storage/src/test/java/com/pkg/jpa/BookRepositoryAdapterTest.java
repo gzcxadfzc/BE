@@ -2,8 +2,10 @@ package com.pkg.jpa;
 
 import com.pkg.domain.book.Book;
 import com.pkg.domain.book.BookPage;
+import com.pkg.domain.book.BookRetrieveQuery;
 import com.pkg.domain.book.BookThumbnail;
 import com.pkg.domain.character.BookCharacter;
+import com.pkg.domain.common.PageResult;
 import com.pkg.domain.member.Actor;
 import com.pkg.domain.member.Role;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,7 +36,7 @@ class BookRepositoryAdapterTest {
     private CharacterJpaRepository characterJpaRepository;
 
     @Autowired
-    private PageJpaRepository pageJpaRepository;
+    private BookPageJpaRepository pageJpaRepository;
 
     @Autowired
     private MemberJpaRepository memberJpaRepository;
@@ -144,7 +146,7 @@ class BookRepositoryAdapterTest {
         assertThat(savedBookEntity.getCreatedAt()).isNotNull();
 
         // Verify pages were persisted
-        List<PageJpaEntity> savedPages = pageJpaRepository.findAllByBookId(newBookId);
+        List<BookPageJpaEntity> savedPages = pageJpaRepository.findAllByBookId(newBookId);
         assertThat(savedPages).hasSize(3);
         assertThat(savedPages).extracting("context")
                 .containsExactly("New page 1 content", "New page 2 content", "New page 3 content");
@@ -193,7 +195,7 @@ class BookRepositoryAdapterTest {
         assertThat(savedBook.bookPages().get(0).context()).isEqualTo("Single page content");
 
         // Verify in database
-        List<PageJpaEntity> savedPages = pageJpaRepository.findAllByBookId(bookId);
+        List<BookPageJpaEntity> savedPages = pageJpaRepository.findAllByBookId(bookId);
         assertThat(savedPages).hasSize(1);
         assertThat(savedPages.get(0).toBookPage().context()).isEqualTo("Single page content");
     }
@@ -472,6 +474,293 @@ class BookRepositoryAdapterTest {
         assertThat(result.get(0).title()).isEqualTo("Test Book");
     }
 
+    @Test
+    @DisplayName("retrieveThumbnails - should retrieve thumbnails with default pagination sorted by created date desc")
+    void retrieveThumbnails_withDefaultPagination() {
+        // Given - create additional books to test pagination
+        CharacterJpaEntity character2 = createCharacter(
+                testMemberId,
+                "Character 2",
+                "small, clever",
+                "intelligent",
+                "A clever character",
+                "http://example.com/character2.jpg",
+                "http://example.com/origin2.jpg"
+        );
+        characterJpaRepository.save(character2);
+
+        BookJpaEntity book2 = BookJpaEntity.builder()
+                .id("book-456")
+                .userId(testMemberId)
+                .characterId(character2.getId())
+                .title("Book 2")
+                .author("Author 2")
+                .createdAt(LocalDateTime.now().plusDays(1))
+                .bookColor(2L)
+                .storyLength(15)
+                .coverImageUrl("http://example.com/cover2.jpg")
+                .build();
+        bookJpaRepository.save(book2);
+
+        BookRetrieveQuery query = new BookRetrieveQuery(0, 10, BookRetrieveQuery.SortOption.CREATED_AT_DESC);
+
+        // When
+        PageResult<BookThumbnail> result = bookRepositoryAdapter.retrieveThumbnails(query);
+        List<BookThumbnail> thumbnails = result.getElements();
+
+        // Then
+        assertThat(thumbnails).hasSize(2);
+        // Should be sorted by created date descending (newest first)
+        assertThat(thumbnails.get(0).bookId()).isEqualTo("book-456");
+        assertThat(thumbnails.get(1).bookId()).isEqualTo("book-123");
+    }
+
+    @Test
+    @DisplayName("retrieveThumbnails - should sort by created date ascending")
+    void retrieveThumbnails_sortByCreatedAtAsc() {
+        // Given
+        CharacterJpaEntity character2 = createCharacter(
+                testMemberId,
+                "Character 2",
+                "small, clever",
+                "intelligent",
+                "A clever character",
+                "http://example.com/character2.jpg",
+                "http://example.com/origin2.jpg"
+        );
+        characterJpaRepository.save(character2);
+
+        BookJpaEntity book2 = BookJpaEntity.builder()
+                .id("book-456")
+                .userId(testMemberId)
+                .characterId(character2.getId())
+                .title("Book 2")
+                .author("Author 2")
+                .createdAt(LocalDateTime.now().plusDays(1))
+                .bookColor(2L)
+                .storyLength(15)
+                .coverImageUrl("http://example.com/cover2.jpg")
+                .build();
+        bookJpaRepository.save(book2);
+
+        BookRetrieveQuery query = new BookRetrieveQuery(0, 10, BookRetrieveQuery.SortOption.CREATED_AT_ASC);
+
+        // When
+        PageResult<BookThumbnail> result = bookRepositoryAdapter.retrieveThumbnails(query);
+        List<BookThumbnail> thumbnails = result.getElements();
+
+        // Then
+        assertThat(thumbnails).hasSize(2);
+        // Should be sorted by created date ascending (oldest first)
+        assertThat(thumbnails.get(0).bookId()).isEqualTo("book-123");
+        assertThat(thumbnails.get(1).bookId()).isEqualTo("book-456");
+    }
+
+    @Test
+    @DisplayName("retrieveThumbnails - should sort by title descending")
+    void retrieveThumbnails_sortByTitleDesc() {
+        // Given
+        CharacterJpaEntity character2 = createCharacter(
+                testMemberId,
+                "Character 2",
+                "small, clever",
+                "intelligent",
+                "A clever character",
+                "http://example.com/character2.jpg",
+                "http://example.com/origin2.jpg"
+        );
+        characterJpaRepository.save(character2);
+
+        BookJpaEntity bookA = BookJpaEntity.builder()
+                .id("book-aaa")
+                .userId(testMemberId)
+                .characterId(character2.getId())
+                .title("Alpha Book")
+                .author("Author A")
+                .createdAt(LocalDateTime.now())
+                .bookColor(2L)
+                .storyLength(15)
+                .coverImageUrl("http://example.com/cover-a.jpg")
+                .build();
+        bookJpaRepository.save(bookA);
+
+        BookJpaEntity bookZ = BookJpaEntity.builder()
+                .id("book-zzz")
+                .userId(testMemberId)
+                .characterId(character2.getId())
+                .title("Zebra Book")
+                .author("Author Z")
+                .createdAt(LocalDateTime.now())
+                .bookColor(3L)
+                .storyLength(20)
+                .coverImageUrl("http://example.com/cover-z.jpg")
+                .build();
+        bookJpaRepository.save(bookZ);
+
+        BookRetrieveQuery query = new BookRetrieveQuery(0, 10, BookRetrieveQuery.SortOption.TITLE_DESC);
+
+        // When
+        PageResult<BookThumbnail> result = bookRepositoryAdapter.retrieveThumbnails(query);
+        List<BookThumbnail> thumbnails = result.getElements();
+        // Then
+        assertThat(thumbnails).hasSize(3);
+        // Should be sorted by title descending (Z to A)
+        assertThat(thumbnails.get(0).title()).isEqualTo("Zebra Book");
+        assertThat(thumbnails.get(1).title()).isEqualTo("Test Book");
+        assertThat(thumbnails.get(2).title()).isEqualTo("Alpha Book");
+    }
+
+    @Test
+    @DisplayName("retrieveThumbnails - should sort by title ascending")
+    void retrieveThumbnails_sortByTitleAsc() {
+        // Given
+        CharacterJpaEntity character2 = createCharacter(
+                testMemberId,
+                "Character 2",
+                "small, clever",
+                "intelligent",
+                "A clever character",
+                "http://example.com/character2.jpg",
+                "http://example.com/origin2.jpg"
+        );
+        characterJpaRepository.save(character2);
+
+        BookJpaEntity bookA = BookJpaEntity.builder()
+                .id("book-aaa")
+                .userId(testMemberId)
+                .characterId(character2.getId())
+                .title("Alpha Book")
+                .author("Author A")
+                .createdAt(LocalDateTime.now())
+                .bookColor(2L)
+                .storyLength(15)
+                .coverImageUrl("http://example.com/cover-a.jpg")
+                .build();
+        bookJpaRepository.save(bookA);
+
+        BookJpaEntity bookZ = BookJpaEntity.builder()
+                .id("book-zzz")
+                .userId(testMemberId)
+                .characterId(character2.getId())
+                .title("Zebra Book")
+                .author("Author Z")
+                .createdAt(LocalDateTime.now())
+                .bookColor(3L)
+                .storyLength(20)
+                .coverImageUrl("http://example.com/cover-z.jpg")
+                .build();
+        bookJpaRepository.save(bookZ);
+
+        BookRetrieveQuery query = new BookRetrieveQuery(0, 10, BookRetrieveQuery.SortOption.TITLE_ASC);
+
+        // When
+        PageResult<BookThumbnail> result = bookRepositoryAdapter.retrieveThumbnails(query);
+        List<BookThumbnail> thumbnails = result.getElements();
+        // Then
+        assertThat(thumbnails).hasSize(3);
+        // Should be sorted by title ascending (A to Z)
+        assertThat(thumbnails.get(0).title()).isEqualTo("Alpha Book");
+        assertThat(thumbnails.get(1).title()).isEqualTo("Test Book");
+        assertThat(thumbnails.get(2).title()).isEqualTo("Zebra Book");
+    }
+
+    @Test
+    @DisplayName("retrieveThumbnails - should respect page size limit")
+    void retrieveThumbnails_withPageSizeLimit() {
+        // Given - create 5 books
+        for (int i = 1; i <= 4; i++) {
+            CharacterJpaEntity character = createCharacter(
+                    testMemberId,
+                    "Character " + i,
+                    "keywords " + i,
+                    "personality " + i,
+                    "description " + i,
+                    "http://example.com/char" + i + ".jpg",
+                    "http://example.com/origin" + i + ".jpg"
+            );
+            characterJpaRepository.save(character);
+
+            BookJpaEntity book = BookJpaEntity.builder()
+                    .id("book-" + i)
+                    .userId(testMemberId)
+                    .characterId(character.getId())
+                    .title("Book " + i)
+                    .author("Author " + i)
+                    .createdAt(LocalDateTime.now().plusDays(i))
+                    .bookColor(Long.valueOf(i))
+                    .storyLength(10 + i)
+                    .coverImageUrl("http://example.com/cover" + i + ".jpg")
+                    .build();
+            bookJpaRepository.save(book);
+        }
+
+        BookRetrieveQuery query = new BookRetrieveQuery(0, 3, BookRetrieveQuery.SortOption.CREATED_AT_DESC);
+
+        // When
+        PageResult<BookThumbnail> result = bookRepositoryAdapter.retrieveThumbnails(query);
+        List<BookThumbnail> thumbnails = result.getElements();
+        // Then - should only return 3 books
+        assertThat(thumbnails).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("retrieveThumbnails - should handle pagination with page index")
+    void retrieveThumbnails_withPagination() {
+        // Given - create 6 additional books (total 7 with the one in setUp)
+        for (int i = 1; i <= 6; i++) {
+            CharacterJpaEntity character = createCharacter(
+                    testMemberId,
+                    "Character " + i,
+                    "keywords " + i,
+                    "personality " + i,
+                    "description " + i,
+                    "http://example.com/char" + i + ".jpg",
+                    "http://example.com/origin" + i + ".jpg"
+            );
+            characterJpaRepository.save(character);
+
+            BookJpaEntity book = BookJpaEntity.builder()
+                    .id("book-" + i)
+                    .userId(testMemberId)
+                    .characterId(character.getId())
+                    .title("Book " + i)
+                    .author("Author " + i)
+                    .createdAt(LocalDateTime.now().plusDays(i))
+                    .bookColor(Long.valueOf(i))
+                    .storyLength(10 + i)
+                    .coverImageUrl("http://example.com/cover" + i + ".jpg")
+                    .build();
+            bookJpaRepository.save(book);
+        }
+
+        // When - get first page (index 0, size 2)
+        BookRetrieveQuery queryPage1 = new BookRetrieveQuery(0, 2, BookRetrieveQuery.SortOption.CREATED_AT_DESC);
+        PageResult<BookThumbnail> resultPage1 = bookRepositoryAdapter.retrieveThumbnails(queryPage1);
+
+        // When - get last page (index 3, size 2)
+        BookRetrieveQuery queryPage3 = new BookRetrieveQuery(3, 2, BookRetrieveQuery.SortOption.CREATED_AT_DESC);
+        PageResult<BookThumbnail> resultPage3 = bookRepositoryAdapter.retrieveThumbnails(queryPage3);
+
+
+        // Then
+        assertThat(resultPage1.getElements()).hasSize(2);
+        assertThat(resultPage3.getElements()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("retrieveThumbnails - should return empty list when page index exceeds available books")
+    void retrieveThumbnails_emptyPageBeyondRange() {
+        // Given - only 1 book exists in setUp
+        BookRetrieveQuery query = new BookRetrieveQuery(10, 10, BookRetrieveQuery.SortOption.CREATED_AT_DESC);
+
+        // When
+        PageResult<BookThumbnail> result = bookRepositoryAdapter.retrieveThumbnails(query);
+        List<BookThumbnail> thumbnails = result.getElements();
+
+        // Then
+        assertThat(thumbnails).isEmpty();
+    }
+
     private MemberJpaEntity createMember(String username, String password) {
         return MemberJpaEntity.builder()
                 .username(username)
@@ -495,8 +784,8 @@ class BookRepositoryAdapterTest {
                 .build();
     }
 
-    private PageJpaEntity createPage(String bookId, String content, String imageUrl, int pageNumber) {
-        return PageJpaEntity.builder()
+    private BookPageJpaEntity createPage(String bookId, String content, String imageUrl, int pageNumber) {
+        return BookPageJpaEntity.builder()
                 .bookId(bookId)
                 .context(content)
                 .imageUrl(imageUrl)

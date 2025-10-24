@@ -1,12 +1,13 @@
 package com.pkg.jpa;
 
-import com.pkg.domain.book.Book;
-import com.pkg.domain.book.BookPage;
-import com.pkg.domain.book.BookRepository;
-import com.pkg.domain.book.BookThumbnail;
+import com.pkg.domain.book.*;
 import com.pkg.domain.character.BookCharacter;
+import com.pkg.domain.common.PageInfo;
+import com.pkg.domain.common.PageResult;
 import com.pkg.domain.member.Actor;
 import jakarta.transaction.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -16,9 +17,9 @@ import java.util.List;
 public class BookRepositoryAdapter implements BookRepository {
 
     private final BookJpaRepository bookJpaRepository;
-    private final PageJpaRepository pageJpaRepository;
+    private final BookPageJpaRepository pageJpaRepository;
 
-    public BookRepositoryAdapter(BookJpaRepository bookJpaRepository, PageJpaRepository pageJpaRepository) {
+    public BookRepositoryAdapter(BookJpaRepository bookJpaRepository, BookPageJpaRepository pageJpaRepository) {
         this.bookJpaRepository = bookJpaRepository;
         this.pageJpaRepository = pageJpaRepository;
     }
@@ -40,9 +41,9 @@ public class BookRepositoryAdapter implements BookRepository {
                         .bookColor(1L)
                         .build()
         );
-        List<PageJpaEntity> pageEntities = pageJpaRepository.saveAll(
+        List<BookPageJpaEntity> pageEntities = pageJpaRepository.saveAll(
             pages.stream()
-                .map(page -> PageJpaEntity.builder()
+                .map(page -> BookPageJpaEntity.builder()
                             .bookId(book.id())
                             .context(page.context())
                             .imageUrl(page.imageUrl())
@@ -59,7 +60,7 @@ public class BookRepositoryAdapter implements BookRepository {
         if(bookCharacterProjection == null) {
             return null;
         }
-        List<PageJpaEntity> pages = pageJpaRepository.findAllByBookId(bookId);
+        List<BookPageJpaEntity> pages = pageJpaRepository.findAllByBookId(bookId);
         return Book.builder()
                 .id(bookCharacterProjection.bookId())
                 .title(bookCharacterProjection.title())
@@ -76,7 +77,7 @@ public class BookRepositoryAdapter implements BookRepository {
                                 bookCharacterProjection.characterImageUrl()
                         )
                 )
-                .bookPages(pages.stream().map(PageJpaEntity::toBookPage).toList())
+                .bookPages(pages.stream().map(BookPageJpaEntity::toBookPage).toList())
                 .build();
     }
 
@@ -87,5 +88,22 @@ public class BookRepositoryAdapter implements BookRepository {
                 .stream()
                 .map(BookJpaEntity::toBookThumbnail)
                 .toList();
+    }
+
+    @Override
+    public PageResult<BookThumbnail> retrieveThumbnails(BookRetrieveQuery query) {
+        Pageable pageable = BookRetrieveQueryMapper.toPageable(query);
+        Page<BookJpaEntity> entityPage = bookJpaRepository.findAll(pageable);
+        List<BookThumbnail> thumbnails = entityPage.get()
+                .map(BookJpaEntity::toBookThumbnail)
+                .toList();
+        return new PageResult<>(
+                thumbnails,
+                new PageInfo(
+                        entityPage.getNumber(),
+                        entityPage.getTotalPages(),
+                        entityPage.getTotalElements(),
+                        entityPage.isLast()
+                ));
     }
 }

@@ -60,7 +60,7 @@ class BookControllerIntegrationTest {
     private CharacterJpaRepository characterJpaRepository;
 
     @Autowired
-    private PageJpaRepository pageJpaRepository;
+    private BookPageJpaRepository pageJpaRepository;
 
     @Autowired
     private MemberJpaRepository memberJpaRepository;
@@ -120,7 +120,7 @@ class BookControllerIntegrationTest {
         testBookId = book.getId();
 
         // Insert test pages
-        PageJpaEntity page1 = PageJpaEntity.builder()
+        BookPageJpaEntity page1 = BookPageJpaEntity.builder()
                 .bookId(testBookId)
                 .context("Once upon a time...")
                 .imageUrl("https://example.com/page1.jpg")
@@ -128,7 +128,7 @@ class BookControllerIntegrationTest {
                 .build();
         pageJpaRepository.save(page1);
 
-        PageJpaEntity page2 = PageJpaEntity.builder()
+        BookPageJpaEntity page2 = BookPageJpaEntity.builder()
                 .bookId(testBookId)
                 .context("The adventure begins...")
                 .imageUrl("https://example.com/page2.jpg")
@@ -252,7 +252,7 @@ class BookControllerIntegrationTest {
     @DisplayName("GET /api/v1/book/board/{bookId} - 여러 페이지를 가진 책을 페이지 순서대로 조회할 수 있다")
     void getBookById_shouldReturnPagesInOrder_whenBookHasMultiplePages() throws Exception {
         // given - 페이지 3개 더 추가
-        PageJpaEntity page3 = PageJpaEntity.builder()
+        BookPageJpaEntity page3 = BookPageJpaEntity.builder()
                 .bookId(testBookId)
                 .context("Page 3 content")
                 .imageUrl("https://example.com/page3.jpg")
@@ -260,7 +260,7 @@ class BookControllerIntegrationTest {
                 .build();
         pageJpaRepository.save(page3);
 
-        PageJpaEntity page4 = PageJpaEntity.builder()
+        BookPageJpaEntity page4 = BookPageJpaEntity.builder()
                 .bookId(testBookId)
                 .context("Page 4 content")
                 .imageUrl("https://example.com/page4.jpg")
@@ -268,7 +268,7 @@ class BookControllerIntegrationTest {
                 .build();
         pageJpaRepository.save(page4);
 
-        PageJpaEntity page5 = PageJpaEntity.builder()
+        BookPageJpaEntity page5 = BookPageJpaEntity.builder()
                 .bookId(testBookId)
                 .context("Page 5 content")
                 .imageUrl("https://example.com/page5.jpg")

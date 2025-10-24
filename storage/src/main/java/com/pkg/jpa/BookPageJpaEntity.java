@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "book_page")
-public class PageJpaEntity {
+public class BookPageJpaEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -63,8 +63,8 @@ public class PageJpaEntity {
             return this;
         }
 
-        public PageJpaEntity build() {
-            PageJpaEntity page = new PageJpaEntity();
+        public BookPageJpaEntity build() {
+            BookPageJpaEntity page = new BookPageJpaEntity();
             page.id = this.id;
             page.bookId = this.bookId;
             page.context = this.context;
