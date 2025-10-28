@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 @FeignClient(
-        name = "${ai.open-ai.api.username}",
+        name = "${ai.open-ai.api.name}",
         url = "${ai.open-ai.api.url}",
         configuration = OpenAiFeignConfig.class
 )

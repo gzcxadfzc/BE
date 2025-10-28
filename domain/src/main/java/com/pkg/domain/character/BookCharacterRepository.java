@@ -6,11 +6,11 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface CharacterRepository {
+public interface BookCharacterRepository {
 
-    BookCharacter retrieveById(String characterId);
+    BookCharacter retrieveById(Long characterId);
 
     List<BookCharacter> retrieveByUser(Actor user);
 
-    BookCharacter save(BookCharacterCreationRequest request);
+    BookCharacter save(BookCharacterCreateCommand command);
 }

@@ -10,5 +10,6 @@ public enum DomainExceptionCode {
     E406,
     E407,
     E408,
-    E409
+    E409,
+    E500
 }

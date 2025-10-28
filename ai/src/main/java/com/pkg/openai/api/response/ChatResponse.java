@@ -1,10 +1,12 @@
 package com.pkg.openai.api.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.pkg.openai.api.common.OpenAiResponseStatus;
 
 import java.util.List;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record ChatResponse(
         String id,
         String object,

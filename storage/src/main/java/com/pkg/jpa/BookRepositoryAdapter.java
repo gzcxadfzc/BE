@@ -1,31 +1,57 @@
 package com.pkg.jpa;
 
 import com.pkg.domain.book.*;
+import com.pkg.domain.bookprogress.BookInProgress;
 import com.pkg.domain.character.BookCharacter;
+import com.pkg.domain.character.BookCharacterRepository;
 import com.pkg.domain.common.PageInfo;
 import com.pkg.domain.common.PageResult;
 import com.pkg.domain.member.Actor;
-import jakarta.transaction.Transactional;
+import com.pkg.s3.S3BucketUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.Function;
 
 @Component
+@Transactional(transactionManager = "storageTransactionManager")
 public class BookRepositoryAdapter implements BookRepository {
 
     private final BookJpaRepository bookJpaRepository;
     private final BookPageJpaRepository pageJpaRepository;
+    private final BookCharacterRepository bookCharacterRepository;
 
-    public BookRepositoryAdapter(BookJpaRepository bookJpaRepository, BookPageJpaRepository pageJpaRepository) {
+    public BookRepositoryAdapter(BookJpaRepository bookJpaRepository, BookPageJpaRepository pageJpaRepository, S3BucketUtils s3BucketUtils, BookCharacterRepository bookCharacterRepository) {
         this.bookJpaRepository = bookJpaRepository;
         this.pageJpaRepository = pageJpaRepository;
+        this.bookCharacterRepository = bookCharacterRepository;
+    }
+
+    @Transactional()
+    @Override
+    public Book saveFrom(BookInProgress bookInProgress, Function<BookInProgress, Book> converter) {
+        Book book = converter.apply(bookInProgress);
+        BookJpaEntity bookEntity = bookJpaRepository.save(BookJpaEntity.fromBook(book));
+        List<BookPageJpaEntity> pageEntities = pageJpaRepository.saveAll(
+                book.bookPages().stream()
+                        .map(page -> BookPageJpaEntity.fromBookPage(bookEntity.getId(), page))
+                        .toList()
+        );
+        return new Book(
+                bookEntity.getId(),
+                bookEntity.getUserId(),
+                pageEntities.stream().map(BookPageJpaEntity::toBookPage).toList(),
+                bookEntity.getTitle(),
+                bookEntity.getAuthor(),
+                bookCharacterRepository.retrieveById(bookEntity.getCharacterId())
+        );
     }
 
     @Override
-    @Transactional
     public Book save(Book book) {
         List<BookPage> pages = book.bookPages();
         BookJpaEntity bookEntity = bookJpaRepository.save(

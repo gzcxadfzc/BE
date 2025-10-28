@@ -8,7 +8,6 @@ import com.pkg.domain.book.BookService;
 import com.pkg.domain.book.BookThumbnail;
 import com.pkg.domain.common.PageResult;
 import com.pkg.domain.member.Actor;
-import com.pkg.jpa.BookRetrieveQueryMapper;
 import com.pkg.support.Authenticated;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;

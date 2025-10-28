@@ -2,6 +2,7 @@ package com.pkg.openai.api.request;
 
 
 import com.pkg.openai.api.common.OpenAiModel;
+import com.pkg.openai.api.common.TextFormat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.List;
 public record ChatRequest(
         OpenAiModel model,
         List<ChatMessage> input,
+        TextFormat text,
         boolean background
 ) {
 
@@ -24,11 +26,16 @@ public record ChatRequest(
         return input;
     }
 
+    public TextFormat getText() {
+        return text;
+    }
+
     public static class Builder {
 
         private OpenAiModel model;
         private List<ChatMessage> messages = new ArrayList<>();
         private boolean background;
+        private TextFormat text;
 
         private Builder() {
         }
@@ -59,12 +66,13 @@ public record ChatRequest(
             return this;
         }
 
-        public ChatRequest build() {
-            return new ChatRequest(model, messages, background);
+        public Builder text(TextFormat text) {
+            this.text = text;
+            return this;
         }
 
-        public Builder copy() {
-            return new Builder(this.model, List.copyOf(this.messages), background);
+        public ChatRequest build() {
+            return new ChatRequest(model, messages, text, background);
         }
     }
 }

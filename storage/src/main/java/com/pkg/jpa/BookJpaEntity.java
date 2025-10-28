@@ -1,5 +1,6 @@
 package com.pkg.jpa;
 
+import com.pkg.domain.book.Book;
 import com.pkg.domain.book.BookThumbnail;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -64,6 +65,20 @@ public class BookJpaEntity {
 
     public String getCoverImageUrl() {
         return coverImageUrl;
+    }
+
+    public static BookJpaEntity fromBook(Book book) {
+        return BookJpaEntity.builder()
+                .author(book.author())
+                .title(book.title())
+                .id(book.id())
+                .coverImageUrl(book.bookPages().getFirst().imageUrl())
+                .characterId(book.character().id())
+                .createdAt(LocalDateTime.now())
+                .userId(book.memberId())
+                .storyLength(book.bookPages().size())
+                .bookColor(1L)
+                .build();
     }
 
     public BookThumbnail toBookThumbnail() {

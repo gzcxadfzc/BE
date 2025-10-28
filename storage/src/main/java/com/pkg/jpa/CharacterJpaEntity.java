@@ -1,5 +1,6 @@
 package com.pkg.jpa;
 
+import com.pkg.domain.character.BookCharacter;
 import jakarta.persistence.*;
 
 @Entity
@@ -26,6 +27,18 @@ public class CharacterJpaEntity {
 
     public Long getId() {
         return id;
+    }
+
+    public BookCharacter toBookCharacter() {
+        return new BookCharacter(
+                this.id,
+                this.memberId,
+                this.name,
+                this.appearanceKeywords,
+                this.personality,
+                this.userDescription,
+                this.imageUrl
+        );
     }
 
     public static Builder builder() {

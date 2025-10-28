@@ -19,6 +19,15 @@ public class BookPageJpaEntity {
     @Column(name = "page_number", nullable = false)
     private int pageNumber;
 
+    public static BookPageJpaEntity fromBookPage(String bookId, BookPage bookPage) {
+        return BookPageJpaEntity.builder()
+                .bookId(bookId)
+                .context(bookPage.context())
+                .imageUrl(bookPage.imageUrl())
+                .pageNumber(bookPage.pageNumber())
+                .build();
+    }
+
     public BookPage toBookPage() {
         return new BookPage(
                 this.context,

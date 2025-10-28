@@ -4,9 +4,12 @@ dependencies {
 
     implementation(project(":auth"))
     implementation(project(":domain"))
-    implementation(project(":storage"))
     implementation(project(":core"))
 
+    runtimeOnly(project(":storage"))
+    runtimeOnly(project(":ai"))
+
+    testImplementation(project(":storage"))
     testImplementation("org.springframework.boot:spring-boot-starter-data-jpa")
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis")
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -25,6 +28,7 @@ tasks.register<Copy>("copyResourcesConfig") {
     from(project(":auth").file("src/main/resources"))
     from(project(":storage").file("src/main/resources"))
     from(project(":core").file("src/main/resources"))
+    from(project(":ai").file("src/main/resources"))
 
     into(file("$projectDir/build/resources/main"))
 

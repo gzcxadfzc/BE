@@ -8,7 +8,6 @@ import com.pkg.redis.BookPageRedisEntity;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
@@ -42,6 +41,7 @@ public class RedisConfig {
         template.setConnectionFactory(redisConnectionFactory);
         var stringSer = RedisSerializer.string();
         var jsonSer = new Jackson2JsonRedisSerializer<>(BookInProgressRedisEntity.class);
+        template.setEnableTransactionSupport(true);
         template.setKeySerializer(stringSer);
         template.setValueSerializer(jsonSer);
         template.setHashKeySerializer(stringSer);
@@ -56,6 +56,7 @@ public class RedisConfig {
         template.setConnectionFactory(cf);
         var stringSer = RedisSerializer.string();
         var jsonSer   = new Jackson2JsonRedisSerializer<>(BookPageRedisEntity.class);
+        template.setEnableTransactionSupport(true);
         template.setKeySerializer(stringSer);
         template.setValueSerializer(jsonSer);
         template.setHashKeySerializer(stringSer);

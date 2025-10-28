@@ -27,7 +27,7 @@ public class S3BucketUtils {
         this.properties = properties;
     }
 
-    public void uploadPng(InputStream inputStream, long size, String uploadName) {
+    public PutObjectResponse uploadPng(InputStream inputStream, long size, String uploadName) {
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(properties.bucket())
                 .contentType("image/png")
@@ -36,23 +36,24 @@ public class S3BucketUtils {
                 .metadata(META)
                 .build();
 
-        s3Client.putObject(request, RequestBody.fromInputStream(inputStream, size));
+        return s3Client.putObject(request, RequestBody.fromInputStream(inputStream, size));
     }
 
 
-    public void delete(String fileKey) {
+    public DeleteObjectResponse delete(String fileKey) {
         DeleteObjectRequest request = DeleteObjectRequest.builder()
                 .bucket(properties.bucket())
                 .key(fileKey)
                 .build();
-        s3Client.deleteObject(request);
+        return s3Client.deleteObject(request);
     }
 
-    public void uploadFromUrl(String fromurl, String fileKey) throws IOException, URISyntaxException {
+    public PutObjectResponse uploadFromUrl(String fromurl, String fileKey) throws IOException, URISyntaxException {
+
         URL url = new URI(fromurl).toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setInstanceFollowRedirects(true);
-        conn.setRequestProperty("User-Agent", "LittleWriterBot/1.0 (contact: you@example.com)");
+        conn.setRequestProperty("User-Agent", "LittleWriterBot/1.0");
         conn.setRequestProperty("Accept", "*/*");
         conn.setRequestMethod("GET");
 
@@ -67,11 +68,11 @@ public class S3BucketUtils {
                     .contentType(contentType != null ? contentType : "application/octet-stream")
                     .metadata(META)
                     .build();
-            s3Client.putObject(request, RequestBody.fromInputStream(inputStream, contentLength));
+            return s3Client.putObject(request, RequestBody.fromInputStream(inputStream, contentLength));
         }
     }
 
-    public void copyFile(String sourceKey, String destinationKey) {
+    public CopyObjectResponse copyFile(String sourceKey, String destinationKey) {
         CopyObjectRequest request = CopyObjectRequest.builder()
                 .sourceBucket(properties.bucket())
                 .sourceKey(sourceKey)
@@ -79,7 +80,7 @@ public class S3BucketUtils {
                 .destinationBucket(properties.bucket())
                 .metadataDirective("COPY")
                 .build();
-        s3Client.copyObject(request);
+        return s3Client.copyObject(request);
     }
 
     public GetObjectResponse get(String key) {

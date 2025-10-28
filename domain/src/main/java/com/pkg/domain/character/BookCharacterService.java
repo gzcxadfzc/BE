@@ -6,20 +6,24 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
-public class CharacterService {
+public class BookCharacterService {
 
-    private final CharacterRepository characterRepository;
+    private final BookCharacterRepository characterRepository;
 
-    public CharacterService(CharacterRepository characterRepository) {
+    public BookCharacterService(BookCharacterRepository characterRepository) {
         this.characterRepository = characterRepository;
     }
 
-    public BookCharacter retrieveById(String characterId) {
+    public BookCharacter retrieveById(Long characterId) {
         BookCharacter character = characterRepository.retrieveById(characterId);
         if(character == null) {
             throw BookCharacterException.notFound(characterId);
         }
         return character;
+    }
+
+    public BookCharacter create(BookCharacterCreateCommand command) {
+        return characterRepository.save(command);
     }
 
     public List<BookCharacter> retrieveByUser(Actor currentUser) {

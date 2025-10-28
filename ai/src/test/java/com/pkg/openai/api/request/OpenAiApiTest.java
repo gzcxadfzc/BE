@@ -1,6 +1,5 @@
 package com.pkg.openai.api.request;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.pkg.openai.AiFeignConfig;
 import com.pkg.openai.api.OpenAiApi;
 import com.pkg.openai.api.OpenAiFeignConfig;

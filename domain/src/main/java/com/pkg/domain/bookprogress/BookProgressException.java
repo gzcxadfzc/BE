@@ -9,10 +9,10 @@ public class BookProgressException extends DomainException {
         super(code, message);
     }
 
-    public static BookProgressException notFound(String id) {
+    public static BookProgressException notFound(String resource) {
         return new BookProgressException(
                 DomainExceptionCode.E404,
-                id + " not found."
+                resource + " not found."
         );
     }
 

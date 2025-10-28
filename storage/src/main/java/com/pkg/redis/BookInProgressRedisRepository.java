@@ -15,7 +15,7 @@ public class BookInProgressRedisRepository {
 
     private static final String KEY = "book:inprogress:";
 
-    private static final Long EXPIRATION_SEC = 3600L;
+    private static final Long EXPIRATION_SEC = 360000L;
     private final RedisTemplate<String, BookInProgressRedisEntity> redisTemplate;
     private final RedisTemplate<String, String> stringRedisTemplate;
 

@@ -10,7 +10,7 @@ public class BookCharacterException extends DomainException {
         super(code, message);
     }
 
-    public static BookProgressException notFound(String id) {
+    public static BookProgressException notFound(Long id) {
         return new BookProgressException(
                 DomainExceptionCode.E404,
                 id + "not found"

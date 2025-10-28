@@ -1,5 +1,6 @@
 package com.pkg.domain.bookprogress;
 
+import com.pkg.domain.book.BookPage;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -11,5 +12,9 @@ public interface BookInProgressRepository {
 
     BookInProgress retrieveById(String id);
 
-    void save(BookInProgress bookInProgress);
+    BookInProgress save(BookInProgress bookInProgress);
+
+    BookInProgress addPageTo(String id, BookPage bookPage);
+
+    void delete(String id);
 }

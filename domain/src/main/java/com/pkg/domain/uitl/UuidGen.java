@@ -11,7 +11,7 @@ public class UuidGen {
     }
 
     public static String prefixed(String prefix) {
-        return prefix + "_" + compact();
+        return prefix + compact();
     }
 
     public static boolean isValid(String uuid) {
