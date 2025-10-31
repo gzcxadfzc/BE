@@ -35,12 +35,13 @@ public class BookCharacterRepositoryAdapter implements BookCharacterRepository {
     }
 
     @Override
-    public BookCharacter save(BookCharacterCreateCommand command) {
+    public BookCharacter createFrom(BookCharacterCreateCommand command) {
         CharacterJpaEntity entity = CharacterJpaEntity.builder()
                 .appearanceKeywords(command.appearanceKeywords())
                 .name(command.name())
                 .personality(command.personality())
                 .imageUrl(command.imageUrl())
+                .originImageUrl(null)
                 .userDescription(command.description())
                 .memberId(command.userId())
                 .build();

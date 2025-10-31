@@ -7,13 +7,13 @@ import com.pkg.domain.uitl.UuidGen;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.core.exception.SdkException;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 @Component
@@ -39,7 +39,18 @@ public class ImageRepositoryAdapter implements ImageRepository {
             }
             s3BucketUtils.uploadFromUrl(url, destinationKey);
             return new ImageUploadResult(url, BUCKET_HOST + destinationKey);
-        } catch (IOException | URISyntaxException e ) {
+        } catch (IOException | URISyntaxException | SdkException e ) {
+            throw ImageException.uploadFailed(e.getMessage());
+        }
+    }
+
+    @Override
+    public ImageUploadResult uploadCharacterImage(String url) {
+        try {
+            String destinationKey = UuidGen.prefixed(S3KeyPrefix.CHARACTER.getPrefix()) + ".png";
+            s3BucketUtils.uploadFromUrl(url, BUCKET_HOST + destinationKey);
+            return new ImageUploadResult(url, BUCKET_HOST + destinationKey);
+        } catch (IOException | URISyntaxException | SdkException e) {
             throw ImageException.uploadFailed(e.getMessage());
         }
     }

@@ -9,6 +9,7 @@ import com.pkg.controller.common.ApiResponse;
 import com.pkg.domain.member.Member;
 import com.pkg.domain.member.MemberService;
 import com.pkg.domain.member.SignUpCommand;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,7 +30,7 @@ public class AuthController {
     }
 
     @PostMapping("/signin")
-    public ApiResponse<SignInResponse> signIn(@RequestBody SignInRequest request) {
+    public ApiResponse<SignInResponse> signIn(@Valid @RequestBody SignInRequest request) {
         UsernamePassword usernamePassword = UsernamePassword.of(request.username(), request.password());
         MemberPrincipal memberPrincipal = passwordAuthenticator.authenticate(usernamePassword);
         AccessToken token = tokenProvider.issue(memberPrincipal);
@@ -37,7 +38,7 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public ApiResponse<SignInResponse> singUp(@RequestBody SignUpRequest request) {
+    public ApiResponse<SignInResponse> singUp(@Valid @RequestBody SignUpRequest request) {
         Member member = memberService.signUp(new SignUpCommand(request.username(), request.password()));
         AccessToken token = tokenProvider.issue(member);
         return ApiResponse.success(new SignInResponse(token.getValue()));

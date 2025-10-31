@@ -10,5 +10,7 @@ public interface ImageRepository {
 
     ImageUploadResult uploadTemporary(String url);
 
+    ImageUploadResult uploadCharacterImage(String url);
+
     Map<String, ImageUploadResult> copyAllToPermanentStorage(List<String> urls);
 }

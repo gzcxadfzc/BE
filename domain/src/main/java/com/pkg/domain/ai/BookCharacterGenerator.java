@@ -1,8 +1,8 @@
 package com.pkg.domain.ai;
 
-import com.pkg.domain.character.BookCharacterCreateCommand;
+import com.pkg.domain.character.BookCharacterGenerateRequest;
 
 public interface BookCharacterGenerator {
 
-    String generateImageFrom(BookCharacterCreateCommand bookCharacterCreateCommand);
+    String generateImageFrom(BookCharacterGenerateRequest request);
 }

@@ -1,12 +1,14 @@
 package com.pkg.adapter;
 
+import com.pkg.core.CallStep;
+import com.pkg.domain.character.BookCharacterGenerateRequest;
 import com.pkg.openai.api.OpenAiApi;
 import com.pkg.openai.api.request.ImageRequest;
 import com.pkg.openai.api.response.ImageResponse;
 import org.springframework.stereotype.Component;
 
 @Component
-public class OpenAIBookCharacterGenerator {
+public class OpenAIBookCharacterGenerator implements CallStep<BookCharacterGenerateRequest, String> {
 
     private static final String IMAGE_PROMPT_PREFIX = """
             This should be a full-sized, children's picture book illustration style, boasting pure and vibrant colors.
@@ -22,11 +24,15 @@ public class OpenAIBookCharacterGenerator {
         this.api = api;
     }
 
-    public String generateImage(String userPrompt) {
+    @Override
+    public String operate(BookCharacterGenerateRequest generateRequest) {
 
         ImageRequest request = ImageRequest.dallE2Builder()
                 .n(1)
-                .prompt(IMAGE_PROMPT_PREFIX + userPrompt)
+                .prompt(
+                        IMAGE_PROMPT_PREFIX
+                        + "description:" + generateRequest.description()
+                        + ",appearance:" + generateRequest.appearanceKeywords())
                 .size256()
                 .build();
 

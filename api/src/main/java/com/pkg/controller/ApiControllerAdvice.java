@@ -5,22 +5,23 @@ import com.pkg.authentication.core.AuthenticationExceptionType;
 import com.pkg.controller.common.ApiError;
 import com.pkg.domain.exception.DomainException;
 import com.pkg.domain.exception.DomainExceptionCode;
+import com.pkg.openai.api.exception.OpenAiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Map;
 
 @RestControllerAdvice
 public class ApiControllerAdvice {
 
     private static final Logger log = LoggerFactory.getLogger(ApiControllerAdvice.class);
-
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleException(Exception e) {
@@ -41,6 +42,26 @@ public class ApiControllerAdvice {
         log.error("Authentication Exception: {}", e.getMessage());
         return ResponseEntity.status(AuthTypeMapper.toStatusCode(e))
                 .body(new ApiError(e.getType().name(), e.getMessage()));
+    }
+
+    @ExceptionHandler(OpenAiException.class)
+    public ResponseEntity<ApiError> handleDomainException(OpenAiException e) {
+        log.error("Open AI Exception: {}", e.getMessage());
+        return ResponseEntity.status(500)
+                .body(new ApiError("E500", e.getMessage()));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiError> handleValidationError(MethodArgumentNotValidException ex) {
+        List<String> errors = ex.getBindingResult().getFieldErrors()
+                .stream()
+                .map(error -> error.getField() + " " + error.getDefaultMessage())
+                .toList();
+
+        log.warn("Validation failed: {}", errors);
+        return ResponseEntity
+                .badRequest()
+                .body(new ApiError("E400", "bad request"));
     }
 
     private static class DomainCodeMapper {

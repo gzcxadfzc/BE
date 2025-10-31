@@ -1,7 +1,9 @@
 package com.pkg.controller.bookprogress;
 
+import jakarta.validation.constraints.NotBlank;
+
 public record BookCompleteRequest(
-        String title,
-        String author
+        @NotBlank String title,
+        @NotBlank String author
 ) {
 }

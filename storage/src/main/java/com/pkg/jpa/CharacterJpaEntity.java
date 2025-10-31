@@ -16,7 +16,7 @@ public class CharacterJpaEntity {
     private String personality;
     @Column(name = "image_url", nullable = false)
     private String imageUrl;
-    @Column(name = "origin_image_url", nullable = false)
+    @Column(name = "origin_image_url", nullable = true)
     private String originImageUrl;
     @Column(name = "user_description", nullable = false)
     private String userDescription;

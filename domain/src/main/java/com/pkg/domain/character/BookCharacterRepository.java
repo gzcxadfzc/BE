@@ -12,5 +12,5 @@ public interface BookCharacterRepository {
 
     List<BookCharacter> retrieveByUser(Actor user);
 
-    BookCharacter save(BookCharacterCreateCommand command);
+    BookCharacter createFrom(BookCharacterCreateCommand command);
 }

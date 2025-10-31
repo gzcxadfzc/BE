@@ -1,7 +1,7 @@
 package com.pkg.adapter;
 
 import com.pkg.domain.ai.BookCharacterGenerator;
-import com.pkg.domain.character.BookCharacterCreateCommand;
+import com.pkg.domain.character.BookCharacterGenerateRequest;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -14,9 +14,7 @@ public class BookCharacterGeneratorAdapter implements BookCharacterGenerator {
     }
 
     @Override
-    public String generateImageFrom(BookCharacterCreateCommand bookCharacterCreateCommand) {
-        String appearance = "appearance : " + bookCharacterCreateCommand.appearanceKeywords();
-        String description = "description: " + bookCharacterCreateCommand.description();
-        return generator.generateImage(appearance + description);
+    public String generateImageFrom(BookCharacterGenerateRequest request) {
+        return generator.operate(request);
     }
 }

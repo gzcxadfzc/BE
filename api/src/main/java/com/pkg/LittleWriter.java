@@ -8,6 +8,6 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @EnableAsync
 public class LittleWriter {
     public static void main(String[] args) {
-        SpringApplication.run(LittleWriter.class, "--spring.profiles.active=test-local");
+        SpringApplication.run(LittleWriter.class);
     }
 }

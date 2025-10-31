@@ -1,13 +1,14 @@
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     implementation(project(":auth"))
     implementation(project(":domain"))
     implementation(project(":core"))
+    implementation(project(":ai"))
 
     runtimeOnly(project(":storage"))
-    runtimeOnly(project(":ai"))
 
     testImplementation(project(":storage"))
     testImplementation("org.springframework.boot:spring-boot-starter-data-jpa")

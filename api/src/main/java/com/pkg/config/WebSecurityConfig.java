@@ -30,7 +30,8 @@ public class WebSecurityConfig {
         return List.of(
                 "/api/v1/health",
                 "/api/v1/book/board/**",
-                "/api/v1/auth/**"
+                "/api/v1/auth/**",
+                "/api/v1/character/board/**"
         );
     }
 }

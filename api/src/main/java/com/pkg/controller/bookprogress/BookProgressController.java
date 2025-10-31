@@ -7,6 +7,7 @@ import com.pkg.domain.book.Book;
 import com.pkg.domain.bookprogress.*;
 import com.pkg.domain.member.Actor;
 import com.pkg.support.Authenticated;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,7 +24,9 @@ public class BookProgressController {
 
     @PostMapping
     @RequestMapping("/init")
-    public ApiResponse<BookGenerationResponse> initBook(@Authenticated Actor currentUser, @RequestBody BookInitRequest request) {
+    public ApiResponse<BookGenerationResponse> initBook(
+            @Authenticated Actor currentUser,
+            @Valid @RequestBody BookInitRequest request) {
         BookInitCommand command = new BookInitCommand(
                 request.characterId(),
                 request.backgroundInfo(),
@@ -39,7 +42,7 @@ public class BookProgressController {
     public ApiResponse<BookResponse> completeBook(
             @Authenticated Actor currentUser,
             @PathVariable String id,
-            @RequestBody BookCompleteRequest request) {
+            @Valid @RequestBody BookCompleteRequest request) {
         CompleteBookCommand command = new CompleteBookCommand(
                 currentUser,
                 id,
@@ -53,7 +56,7 @@ public class BookProgressController {
     @PostMapping("/{id}")
     public ApiResponse<BookGenerationResponse> generatePage(
             @Authenticated Actor currentUser,
-            @RequestBody BookInitRequest request,
+            @Valid @RequestBody BookInitRequest request,
             @PathVariable String id
     ) {
         CreateOnePageCommand command = new CreateOnePageCommand(
