@@ -68,7 +68,8 @@ class RedisRepositoryTest {
                 userId,
                 "마법의 숲에서의 모험",
                 character,
-                10
+                10,
+                BookInProgressRedisEntity.Status.IN_PROGRESS
         );
 
         // When
@@ -101,7 +102,7 @@ class RedisRepositoryTest {
                 100L, "캐릭터", "설명", "외모", "성격", "example.com"
         );
         BookInProgressRedisEntity entity = new BookInProgressRedisEntity(
-                testBookId, userId, "배경", character, 5
+                testBookId, userId, "배경", character, 5, BookInProgressRedisEntity.Status.IN_PROGRESS
         );
 
         // When - 저장 전
@@ -130,7 +131,7 @@ class RedisRepositoryTest {
                 100L, "캐릭터", "설명", "외모", "성격", "example.com"
         );
         BookInProgressRedisEntity entity = new BookInProgressRedisEntity(
-                testBookId, userId, "배경", character, 5
+                testBookId, userId, "배경", character, 5, BookInProgressRedisEntity.Status.IN_PROGRESS
         );
         bookInProgressRedisRepository.put(entity);
 
@@ -158,14 +159,14 @@ class RedisRepositoryTest {
                 100L, "캐릭터1", "설명1", "외모1", "성격1", "example.com"
         );
         BookInProgressRedisEntity entity1 = new BookInProgressRedisEntity(
-                testBookId1, userId1, "배경1", character1, 5
+                testBookId1, userId1, "배경1", character1, 5, BookInProgressRedisEntity.Status.IN_PROGRESS
         );
 
         BookInProgressRedisEntity.BookCharacterRedis character2 = new BookInProgressRedisEntity.BookCharacterRedis(
                 200L, "캐릭터2", "설명2", "외모2", "성격2", "example2.com"
         );
         BookInProgressRedisEntity entity2 = new BookInProgressRedisEntity(
-                testBookId2, userId2, "배경2", character2, 10
+                testBookId2, userId2, "배경2", character2, 10, BookInProgressRedisEntity.Status.IN_PROGRESS
         );
 
         // When
@@ -211,14 +212,14 @@ class RedisRepositoryTest {
                 100L, "캐릭터1", "설명1", "외모1", "성격1", "example.com"
         );
         BookInProgressRedisEntity entity1 = new BookInProgressRedisEntity(
-                "book-id-1", memberId, "배경1", character1, 5
+                "book-id-1", memberId, "배경1", character1, 5, BookInProgressRedisEntity.Status.IN_PROGRESS
         );
 
         BookInProgressRedisEntity.BookCharacterRedis character2 = new BookInProgressRedisEntity.BookCharacterRedis(
                 200L, "캐릭터2", "설명2", "외모2", "성격2", "example.com"
         );
         BookInProgressRedisEntity entity2 = new BookInProgressRedisEntity(
-                "book-id-2", memberId, "배경2", character2, 10
+                "book-id-2", memberId, "배경2", character2, 10, BookInProgressRedisEntity.Status.IN_PROGRESS
         );
 
         // When
@@ -265,21 +266,21 @@ class RedisRepositoryTest {
                 100L, "캐릭터1", "설명1", "외모1", "성격1", "example.com"
         );
         BookInProgressRedisEntity entity1 = new BookInProgressRedisEntity(
-                "book-id-1", memberId1, "배경1", character1, 5
+                "book-id-1", memberId1, "배경1", character1, 5, BookInProgressRedisEntity.Status.IN_PROGRESS
         );
 
         BookInProgressRedisEntity.BookCharacterRedis character2 = new BookInProgressRedisEntity.BookCharacterRedis(
                 200L, "캐릭터2", "설명2", "외모2", "성격2", "example.com"
         );
         BookInProgressRedisEntity entity2 = new BookInProgressRedisEntity(
-                "book-id-2", memberId1, "배경2", character2, 10
+                "book-id-2", memberId1, "배경2", character2, 10, BookInProgressRedisEntity.Status.IN_PROGRESS
         );
 
         BookInProgressRedisEntity.BookCharacterRedis character3 = new BookInProgressRedisEntity.BookCharacterRedis(
                 300L, "캐릭터3", "설명3", "외모3", "성격3", "example.com"
         );
         BookInProgressRedisEntity entity3 = new BookInProgressRedisEntity(
-                "book-id-3", memberId2, "배경3", character3, 15
+                "book-id-3", memberId2, "배경3", character3, 15, BookInProgressRedisEntity.Status.IN_PROGRESS
         );
 
         // When
@@ -315,14 +316,14 @@ class RedisRepositoryTest {
                 100L, "캐릭터1", "설명1", "외모1", "성격1", "example.com"
         );
         BookInProgressRedisEntity entity1 = new BookInProgressRedisEntity(
-                "book-id-1", memberId, "배경1", character1, 5
+                "book-id-1", memberId, "배경1", character1, 5, BookInProgressRedisEntity.Status.IN_PROGRESS
         );
 
         BookInProgressRedisEntity.BookCharacterRedis character2 = new BookInProgressRedisEntity.BookCharacterRedis(
                 200L, "캐릭터2", "설명2", "외모2", "성격2", "example.com"
         );
         BookInProgressRedisEntity entity2 = new BookInProgressRedisEntity(
-                "book-id-2", memberId, "배경2", character2, 10
+                "book-id-2", memberId, "배경2", character2, 10, BookInProgressRedisEntity.Status.IN_PROGRESS
         );
 
         bookInProgressRedisRepository.put(entity1);

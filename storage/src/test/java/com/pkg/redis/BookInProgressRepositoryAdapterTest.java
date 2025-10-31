@@ -59,7 +59,8 @@ class BookInProgressRepositoryAdapterTest {
                 1L,
                 "숲속 친구들의 모험 이야기",
                 testCharacter,
-                Collections.emptyList()
+                Collections.emptyList(),
+                BookInProgress.Status.IN_PROGRESS
         );
     }
 
@@ -119,7 +120,9 @@ class BookInProgressRepositoryAdapterTest {
                 1L,
                 "페이지가 있는 책",
                 testCharacter,
-                pages
+                pages,
+                BookInProgress.Status.IN_PROGRESS
+
         );
 
         // When
@@ -179,7 +182,9 @@ class BookInProgressRepositoryAdapterTest {
                 1L,
                 "업데이트 테스트",
                 testCharacter,
-                initialPages
+                initialPages,
+                BookInProgress.Status.IN_PROGRESS
+
         );
         adapter.save(bookWithPages);
 
@@ -192,7 +197,9 @@ class BookInProgressRepositoryAdapterTest {
                 1L,
                 "업데이트 테스트",
                 testCharacter,
-                updatedPages
+                updatedPages,
+                BookInProgress.Status.IN_PROGRESS
+
         );
         adapter.save(updatedBook);
 
@@ -223,7 +230,9 @@ class BookInProgressRepositoryAdapterTest {
                 2L,
                 "사자의 모험",
                 detailedCharacter,
-                Collections.emptyList()
+                Collections.emptyList(),
+                BookInProgress.Status.IN_PROGRESS
+
         );
 
         // When
@@ -277,7 +286,9 @@ class BookInProgressRepositoryAdapterTest {
                 1L,
                 "여러 페이지 테스트",
                 testCharacter,
-                pages
+                pages,
+                BookInProgress.Status.IN_PROGRESS
+
         );
         adapter.save(bookWithPages);
 
@@ -335,14 +346,18 @@ class BookInProgressRepositoryAdapterTest {
                 1L,
                 "첫 번째 책",
                 testCharacter,
-                Collections.emptyList()
+                Collections.emptyList(),
+                BookInProgress.Status.IN_PROGRESS
+
         );
         BookInProgress book2 = new BookInProgress(
                 "test-book-002",
                 1L,
                 "두 번째 책",
                 testCharacter,
-                Collections.emptyList()
+                Collections.emptyList(),
+                BookInProgress.Status.IN_PROGRESS
+
         );
 
         adapter.save(book1);
@@ -370,7 +385,9 @@ class BookInProgressRepositoryAdapterTest {
                 1L,
                 "회원1의 책",
                 testCharacter,
-                Collections.emptyList()
+                Collections.emptyList(),
+                BookInProgress.Status.IN_PROGRESS
+
         );
 
         BookCharacter member2Character = new BookCharacter(
@@ -381,7 +398,9 @@ class BookInProgressRepositoryAdapterTest {
                 2L,
                 "회원2의 책",
                 member2Character,
-                Collections.emptyList()
+                Collections.emptyList(),
+                BookInProgress.Status.IN_PROGRESS
+
         );
 
         adapter.save(member1Book);
@@ -433,14 +452,17 @@ class BookInProgressRepositoryAdapterTest {
                 1L,
                 "첫 번째 책",
                 testCharacter,
-                pages1
+                pages1,
+                BookInProgress.Status.IN_PROGRESS
         );
         BookInProgress book2 = new BookInProgress(
                 "test-book-002",
                 1L,
                 "두 번째 책",
                 testCharacter,
-                pages2
+                pages2,
+                BookInProgress.Status.IN_PROGRESS
+
         );
 
         adapter.save(book1);
@@ -527,7 +549,8 @@ class BookInProgressRepositoryAdapterTest {
                     memberId,
                     "회원" + memberId + "의 책",
                     character,
-                    Collections.emptyList()
+                    Collections.emptyList(),
+                    BookInProgress.Status.IN_PROGRESS
             );
 
             adapter.save(book);

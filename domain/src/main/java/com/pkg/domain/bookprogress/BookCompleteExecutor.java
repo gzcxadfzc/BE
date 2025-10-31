@@ -7,9 +7,6 @@ import com.pkg.domain.character.BookCharacter;
 import com.pkg.domain.character.BookCharacterRepository;
 import com.pkg.domain.image.ImageRepository;
 import com.pkg.domain.image.ImageUploadResult;
-import com.pkg.domain.member.Actor;
-import com.pkg.domain.member.Role;
-import com.pkg.domain.uitl.UuidGen;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -22,44 +19,48 @@ public class BookCompleteExecutor {
     private final BookCharacterRepository bookCharacterRepository;
     private final BookRepository bookRepository;
     private final ImageRepository imageRepository;
+    private final BookInProgressLockExecutor lockExecutor;
 
-    public BookCompleteExecutor(BookInProgressRepository bookInProgressRepository, BookCharacterRepository bookCharacterRepository, BookRepository bookRepository, ImageRepository imageRepository) {
+    public BookCompleteExecutor(
+            BookInProgressRepository bookInProgressRepository,
+            BookCharacterRepository bookCharacterRepository,
+            BookRepository bookRepository,
+            ImageRepository imageRepository,
+            BookInProgressLockExecutor lockExecutor
+    ) {
         this.bookInProgressRepository = bookInProgressRepository;
         this.bookCharacterRepository = bookCharacterRepository;
         this.bookRepository = bookRepository;
         this.imageRepository = imageRepository;
+        this.lockExecutor = lockExecutor;
     }
 
     public Book completeBook(CompleteBookCommand command) {
-        BookInProgress bookInProgress = getBookInProgress(command);
-        Map<String, ImageUploadResult> result = imageRepository.copyAllToPermanentStorage(
-                bookInProgress.previousPages().stream()
-                        .map(BookPage::imageUrl)
-                        .toList());
-        List<BookPage> newBookPages = bookInProgress.previousPages()
-                .stream()
+        return lockExecutor.saveWithLock(command.bookInProgressId(), () -> {
+            BookInProgress updated = getBookInProgress(command)
+                    .changeBookPages(this::uploadImagesAndChangeUrls)
+                    .markAsCompleted();
+            bookInProgressRepository.save(updated);
+            return bookRepository.saveFrom(updated, bip -> {
+                validateNotNull(bip.character());
+                return Book.completeFromCommand(updated, command);
+            });
+        });
+    }
+
+    private List<BookPage> uploadImagesAndChangeUrls(List<BookPage> pages) {
+        Map<String, ImageUploadResult> result = imageRepository.copyAllToPermanentStorage(pages.stream().map(BookPage::imageUrl).toList());
+        return pages.stream()
                 .map(page -> {
                     String newUrl = result.get(page.imageUrl()).newUrl();
                     return new BookPage(page.context(), newUrl, page.pageNumber());
                 }).toList();
-        return bookRepository.saveFrom(bookInProgress, bip -> {
-            validateOwner(bip, command.actor());
-            validateCharacter(bip);
-            return Book.builder()
-                    .title(command.title())
-                    .id(UuidGen.compact())
-                    .memberId(command.actor().id())
-                    .character(bip.character())
-                    .bookPages(newBookPages)
-                    .author(command.author())
-                    .build();
-        });
     }
 
-    private BookCharacter validateCharacter(BookInProgress bookInProgress) {
-        BookCharacter bookCharacter = bookCharacterRepository.retrieveById(bookInProgress.character().id());
+    private BookCharacter validateNotNull(BookCharacter character) {
+        BookCharacter bookCharacter = bookCharacterRepository.retrieveById(character.id());
         if(bookCharacter == null) {
-            throw BookProgressException.notFound("bookCharacter:" + bookInProgress.character().id());
+            throw BookProgressException.notFound("bookCharacter:");
         }
         return bookCharacter;
     }
@@ -70,15 +71,5 @@ public class BookCompleteExecutor {
             throw BookProgressException.notFound("not found bookInProgress: " + command.bookInProgressId());
         }
         return bookInProgress;
-    }
-
-    private void validateOwner(BookInProgress bookInProgress, Actor user) {
-        if(user.role().equals(Role.ADMIN)) {
-            return;
-        }
-        long currentUserId = user.id();
-        if(currentUserId != bookInProgress.ownerId()) {
-            throw BookProgressException.forbiddenResource();
-        }
     }
 }

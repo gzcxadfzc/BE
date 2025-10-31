@@ -10,7 +10,8 @@ import java.util.List;
 public record BookInProgressResponse(
         String id,
         List<GeneratedPage> generatedPages,
-        MainCharacter mainCharacter
+        MainCharacter mainCharacter,
+        String status
 ) {
     public record GeneratedPage(
             String context,
@@ -42,7 +43,8 @@ public record BookInProgressResponse(
                         .stream()
                         .map(GeneratedPage::from)
                         .toList(),
-                MainCharacter.from(result.bookInProgress().character())
+                MainCharacter.from(result.bookInProgress().character()),
+                result.bookInProgress().status().name()
         );
     }
 
@@ -53,7 +55,8 @@ public record BookInProgressResponse(
                         .stream()
                         .map(GeneratedPage::from)
                         .toList(),
-                MainCharacter.from(bip.character())
+                MainCharacter.from(bip.character()),
+                bip.status().name()
         );
     }
 }

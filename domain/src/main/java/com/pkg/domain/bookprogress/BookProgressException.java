@@ -22,4 +22,25 @@ public class BookProgressException extends DomainException {
                 "not authorized"
         );
     }
+
+    public static BookProgressException bookPageAlreadyGenerating(String bipId) {
+        return new BookProgressException(
+                DomainExceptionCode.E409,
+                bipId + " is generating page via ai"
+        );
+    }
+
+    public static BookProgressException bookPageAlreadySaving(String bipId) {
+        return new BookProgressException(
+                DomainExceptionCode.E409,
+                bipId + " is being saved"
+        );
+    }
+
+    public static BookProgressException bookNotCompleted(String bipId) {
+        return new BookProgressException(
+                DomainExceptionCode.E409,
+                bipId + " is not completed"
+        );
+    }
 }

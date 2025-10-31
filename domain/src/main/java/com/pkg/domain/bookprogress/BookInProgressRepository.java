@@ -15,6 +15,4 @@ public interface BookInProgressRepository {
     BookInProgress save(BookInProgress bookInProgress);
 
     BookInProgress addPageTo(String id, BookPage bookPage);
-
-    void delete(String id);
 }

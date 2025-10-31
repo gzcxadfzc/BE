@@ -1,6 +1,11 @@
 package com.pkg.domain.book;
 
+import com.pkg.domain.bookprogress.BookInProgress;
+import com.pkg.domain.bookprogress.BookProgressException;
+import com.pkg.domain.bookprogress.CompleteBookCommand;
 import com.pkg.domain.character.BookCharacter;
+import com.pkg.domain.member.Role;
+import com.pkg.domain.uitl.UuidGen;
 
 import java.util.List;
 
@@ -12,6 +17,25 @@ public record Book(
         String author,
         BookCharacter character
 ) {
+
+    public static Book completeFromCommand(BookInProgress bookInProgress, CompleteBookCommand command) {
+        if(bookInProgress.status() != BookInProgress.Status.COMPLETED) {
+            throw BookProgressException.bookNotCompleted(bookInProgress.id());
+        }
+        if(bookInProgress.ownerId() != command.actor().id()
+           && !command.actor().role().equals(Role.ADMIN)) {
+            throw BookException.notAuthorizedBookCreationFrom(bookInProgress);
+        }
+        return Book.builder()
+                .id(UuidGen.compact())
+                .title(command.title())
+                .memberId(bookInProgress.ownerId())
+                .character(bookInProgress.character())
+                .bookPages(bookInProgress.previousPages())
+                .author(command.author())
+                .build();
+    }
+
 
     public static Builder builder() {
         return new Builder();

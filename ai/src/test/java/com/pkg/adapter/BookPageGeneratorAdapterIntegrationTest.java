@@ -47,7 +47,8 @@ class BookPageGeneratorAdapterIntegrationTest {
                 testCharacter,
                 List.of(
                         new BookPage("토끼 토리는 햇살에 잠을 깨어 집밖으로 나갔습니다.", "", 0)
-                )
+                ),
+                BookInProgress.Status.IN_PROGRESS
         );
     }
 

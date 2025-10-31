@@ -31,7 +31,8 @@ public class BookInProgressRepositoryAdapter implements BookInProgressRepository
                             bip.toBookCharacter(),
                             pages.stream()
                                     .map(BookPageRedisEntity::toBookPage)
-                                    .toList()
+                                    .toList(),
+                            BookInProgressRedisEntity.Status.toDomain(bip.status())
                     );
                 }).toList();
     }
@@ -52,7 +53,8 @@ public class BookInProgressRepositoryAdapter implements BookInProgressRepository
                 bip.toBookCharacter(),
                 pages.stream()
                         .map(BookPageRedisEntity::toBookPage)
-                        .toList()
+                        .toList(),
+                BookInProgressRedisEntity.Status.toDomain(bip.status())
         );
     }
 
@@ -75,7 +77,8 @@ public class BookInProgressRepositoryAdapter implements BookInProgressRepository
                 bookInProgress.ownerId(),
                 bookInProgress.backgroundInfo(),
                 characterRedis,
-                bookInProgress.previousPages().size()
+                bookInProgress.previousPages().size(),
+                BookInProgressRedisEntity.Status.fromDomain(bookInProgress.status())
         );
 
         // Save the book in progress entity
@@ -117,12 +120,8 @@ public class BookInProgressRepositoryAdapter implements BookInProgressRepository
                 bip.toBookCharacter(),
                 updated.stream()
                         .map(BookPageRedisEntity::toBookPage)
-                        .toList()
+                        .toList(),
+                BookInProgressRedisEntity.Status.toDomain(bip.status())
         );
-    }
-
-    @Override
-    public void delete(String id) {
-        bookInProgressRepository.delete(id);
     }
 }
