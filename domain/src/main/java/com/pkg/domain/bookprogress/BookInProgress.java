@@ -44,6 +44,20 @@ public record BookInProgress(
         );
     }
 
+    public BookInProgress changeBookPage(UnaryOperator<BookPage> pageModifier) {
+        if(status == Status.COMPLETED) {
+            throw BookProgressException.alreadyCompleted(id);
+        }
+        return new BookInProgress(
+                id,
+                ownerId,
+                backgroundInfo,
+                character,
+                previousPages.stream().map(pageModifier).toList(),
+                status
+        );
+    }
+
     public BookInProgress addBookPage(BookPage bookPage) {
         if(status == Status.COMPLETED) {
             throw BookProgressException.bookNotCompleted(id);
@@ -83,7 +97,7 @@ public record BookInProgress(
 
     public BookInProgress markAsCompleted() {
         if(status == Status.COMPLETED) {
-            throw BookProgressException.bookNotCompleted(id);
+            throw BookProgressException.alreadyCompleted(id);
         }
         return new BookInProgress(
                 this.id,
@@ -95,9 +109,24 @@ public record BookInProgress(
         );
     }
 
+    public BookInProgress markAsPending() {
+        if(status == Status.COMPLETED) {
+            throw BookProgressException.alreadyCompleted(id);
+        }
+        return new BookInProgress(
+                this.id,
+                this.ownerId,
+                this.backgroundInfo,
+                this.character,
+                this.previousPages,
+                Status.PENDING
+        );
+    }
+
     public enum Status {
 
         COMPLETED,
-        IN_PROGRESS
+        IN_PROGRESS,
+        PENDING
     }
 }

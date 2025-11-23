@@ -5,4 +5,8 @@ public record BookPage(
     String imageUrl,
     int pageNumber
 ) {
+
+    public BookPage changeImageUrl(String url) {
+        return new BookPage(this.context, url, this.pageNumber);
+    }
 }

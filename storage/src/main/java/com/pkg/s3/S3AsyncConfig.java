@@ -19,4 +19,15 @@ public class S3AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    @Bean(name = "transaction-event")
+    public ThreadPoolTaskExecutor transactionEvent() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(40);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("transaction-event-");
+        executor.initialize();
+        return executor;
+    }
 }

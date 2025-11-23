@@ -43,4 +43,11 @@ public class BookProgressException extends DomainException {
                 bipId + " is not completed"
         );
     }
+
+    public static BookProgressException alreadyCompleted(String bipId) {
+        return new BookProgressException(
+                DomainExceptionCode.E409,
+                bipId + " is already completed"
+        );
+    }
 }

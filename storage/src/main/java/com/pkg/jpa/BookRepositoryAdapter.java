@@ -7,14 +7,22 @@ import com.pkg.domain.character.BookCharacterRepository;
 import com.pkg.domain.common.PageInfo;
 import com.pkg.domain.common.PageResult;
 import com.pkg.domain.member.Actor;
-import com.pkg.s3.S3BucketUtils;
+import com.pkg.s3.AsyncBucketImageUploader;
+import com.pkg.s3.ImageUploadEvent;
+import com.pkg.s3.PreAssignedUrl;
+import com.pkg.s3.S3KeyGen;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 @Component
@@ -24,17 +32,34 @@ public class BookRepositoryAdapter implements BookRepository {
     private final BookJpaRepository bookJpaRepository;
     private final BookPageJpaRepository pageJpaRepository;
     private final BookCharacterRepository bookCharacterRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final AsyncBucketImageUploader imageUploader;
 
-    public BookRepositoryAdapter(BookJpaRepository bookJpaRepository, BookPageJpaRepository pageJpaRepository, S3BucketUtils s3BucketUtils, BookCharacterRepository bookCharacterRepository) {
+    public BookRepositoryAdapter(
+            BookJpaRepository bookJpaRepository,
+            BookPageJpaRepository pageJpaRepository,
+            ApplicationEventPublisher eventPublisher,
+            BookCharacterRepository bookCharacterRepository,
+            AsyncBucketImageUploader imageUploader) {
         this.bookJpaRepository = bookJpaRepository;
         this.pageJpaRepository = pageJpaRepository;
         this.bookCharacterRepository = bookCharacterRepository;
+        this.eventPublisher = eventPublisher;
+        this.imageUploader = imageUploader;
     }
 
-    @Transactional()
+    @Transactional
     @Override
     public Book saveFrom(BookInProgress bookInProgress, Function<BookInProgress, Book> converter) {
-        Book book = converter.apply(bookInProgress);
+        Map<String, PreAssignedUrl> urls = PreAssignedUrl.mapOfBookPrefix(
+                bookInProgress.previousPages().stream().map(BookPage::imageUrl).toList());
+        BookInProgress updated = bookInProgress.changeBookPage(page -> {
+            String preAssigned = S3KeyGen.getBucketHost() + urls.get(page.imageUrl()).destinationKey();
+            return page.changeImageUrl(preAssigned);
+        });
+        ImageUploadEvent event = new ImageUploadEvent(urls.values().stream().toList());
+        eventPublisher.publishEvent(event);
+        Book book = converter.apply(updated);
         BookJpaEntity bookEntity = bookJpaRepository.save(BookJpaEntity.fromBook(book));
         List<BookPageJpaEntity> pageEntities = pageJpaRepository.saveAll(
                 book.bookPages().stream()
@@ -49,6 +74,14 @@ public class BookRepositoryAdapter implements BookRepository {
                 bookEntity.getAuthor(),
                 bookCharacterRepository.retrieveById(bookEntity.getCharacterId())
         );
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Async(value = "transaction-event")
+    public void handle(ImageUploadEvent event) {
+        for(PreAssignedUrl url : event.jobs()) {
+            imageUploader.copyToBookStorage(url);
+        }
     }
 
     @Override

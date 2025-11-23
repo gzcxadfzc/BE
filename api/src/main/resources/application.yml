@@ -5,3 +5,33 @@ spring:
       - auth.yml
       - storage.yml
       - ai.yml
+
+logging:
+  file:
+    name: app.log
+---
+
+spring.config.activate.on-profile: test-in-memory
+logging:
+  level:
+    root: INFO
+
+---
+spring.config.activate.on-profile: test-local
+logging:
+  level:
+    root: INFO
+
+---
+spring.config.activate.on-profile: test-local
+logging:
+  level:
+    root: INFO
+
+---
+spring.config.activate.on-profile: prod
+logging:
+  file:
+    name: prod.log
+  level:
+    root: WARN

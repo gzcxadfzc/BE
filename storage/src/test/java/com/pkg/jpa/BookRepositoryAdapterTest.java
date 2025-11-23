@@ -770,9 +770,15 @@ class BookRepositoryAdapterTest {
                 .build();
     }
 
-    private CharacterJpaEntity createCharacter(Long memberId, String name, String appearanceKeywords,
-                                                String personality, String description,
-                                                String imageUrl, String originImageUrl) {
+    private CharacterJpaEntity createCharacter(
+            Long memberId,
+            String name,
+            String appearanceKeywords,
+            String personality,
+            String description,
+            String imageUrl,
+            String originImageUrl
+    ) {
         return CharacterJpaEntity.builder()
                 .memberId(memberId)
                 .name(name)

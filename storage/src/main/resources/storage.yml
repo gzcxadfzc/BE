@@ -38,9 +38,6 @@ storage:
 
 ---
 
-# ==========================================
-# 🟢 운영 환경 (Production)
-# ==========================================
 spring.config.activate.on-profile: prod
 spring:
   jpa:
@@ -66,9 +63,7 @@ storage:
 
 ---
 
-# ==========================================
-# 🧪 테스트 (기본 테스트 환경, Redis Local)
-# ==========================================
+# 테스트 (기본 테스트 환경, Redis Local)
 spring.config.activate.on-profile: test
 spring:
   jpa:
@@ -88,9 +83,7 @@ storage:
 
 ---
 
-# ==========================================
-# 💻 테스트-로컬 (로컬 DB로 통합테스트)
-# ==========================================
+# 테스트-로컬 (로컬 Mysql DB)
 spring.config.activate.on-profile: test-local
 spring:
   jpa:
@@ -115,9 +108,7 @@ storage:
 
 ---
 
-# ==========================================
-# 🧩 테스트-인메모리 (H2, 빠른 단위 테스트)
-# ==========================================
+# 🧩 테스트-인메모리 H2
 spring.config.activate.on-profile: test-in-memory
 spring:
   jpa:
