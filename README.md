@@ -302,22 +302,22 @@ public record BookCharacter(
 
 **주요 메서드**:
 - `initBook()`: 책 생성 초기화 (첫 페이지 생성)
-- `generateWithAi()`: AI를 통한 페이지 생성 (분산 락 적용)
+- `generateWithAi()`: AI를 통한 페이지 생성 (락 적용)
 - `retrieveById()`: 진행 중인 책 조회 (권한 검증)
 
 **협력 객체**:
 - `BookPageGenerator`: AI 페이지 생성
 - `BookInProgressRepository`: 데이터 영속화
-- `BookInProgressLockExecutor`: 분산 락 실행
+- `BookInProgressLockExecutor`: 락 실행
 
 #### BookCompleteExecutor
 진행 중인 책을 완성된 책으로 변환합니다.
 
 **주요 메서드**:
-- `completeBook()`: 책 완료 처리 (분산 락 적용)
+- `completeBook()`: 책 완료 처리 (락 적용)
 
 **처리 과정**:
-1. 분산 락 획득
+1. 락 획득
 2. 임시 이미지를 영구 스토리지로 복사
 3. 책 상태를 `COMPLETED`로 변경
 4. `Book` 엔티티 생성 및 저장
@@ -473,7 +473,7 @@ Content-Type: application/json
 **처리**:
 - 임시 이미지를 영구 스토리지로 이동
 - `BookInProgress` → `Book` 변환
-- 분산 락 적용
+- 락 적용
 
 ### 완성된 책 API
 
