@@ -12,7 +12,7 @@ import java.util.function.Supplier;
 public class BookInProgressLockExecutorAdapter implements BookInProgressLockExecutor {
 
     private static final String BIP_LOCK_KEY_PREFIX = "bip:lock:";
-    private static final Long EXPIRATION_SEC = 100000L;
+    private static final Long EXPIRATION_SEC = 120L;
 
     private final RedisLockManager lockManager;
 
