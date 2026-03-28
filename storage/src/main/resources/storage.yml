@@ -51,7 +51,7 @@ spring:
 storage:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    jdbc-url: ${JDBC_URL}
+    jdbcUrl: ${JDBC_URL}
     username: ${MYSQL_USERNAME}
     password: ${MYSQL_PASSWORD}
   s3:
@@ -77,7 +77,7 @@ spring:
 storage:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    jdbc-url: jdbc:mysql://localhost:3306/little-writer
+    jdbcUrl: jdbc:mysql://localhost:3306/little-writer
     username: root
     password: 7631
 
@@ -102,17 +102,33 @@ spring:
 storage:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    jdbc-url: jdbc:mysql://localhost:3306/little-writer-v2?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    jdbcUrl: jdbc:mysql://localhost:3306/little-writer-v2?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
     username: root
     password: 7631
 
 ---
 
-# 부하 테스트 (prod + load-test 프로파일 조합)
-# S3/AI 빈은 LoadTestConfig에서 mock으로 교체되지만,
-# S3Client 빈 생성 시 properties 바인딩이 먼저 일어나므로 더미 값 필요
+# 부하 테스트 환경 (load-test 단독 프로파일)
 spring.config.activate.on-profile: load-test
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        hbm2ddl.auto: create
+        format_sql: false
+        show_sql: false
+  redis:
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
 storage:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    jdbcUrl: ${JDBC_URL}
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
   s3:
     access-key: load-test-dummy
     secret-key: load-test-dummy
