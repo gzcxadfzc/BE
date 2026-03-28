@@ -31,7 +31,7 @@ variable "db-username" {
 variable "app-instance-type" {
   description = "Spring Boot 서버 인스턴스 타입"
   type        = string
-  default     = "t3.medium"
+  default     = "t3.micro"
 }
 
 variable "redis-instance-type" {
