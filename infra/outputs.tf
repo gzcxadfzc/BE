@@ -19,7 +19,7 @@ output "app_server_env_vars" {
 
     REDIS_HOST=${aws_instance.redis.private_ip}
     REDIS_PORT=6379
-    JDBC_URL=jdbc:mysql://${aws_db_instance.mysql.endpoint}/little-writer?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    JDBC_URL=jdbc:mysql://${aws_db_instance.mysql.endpoint}/littlewriter?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
     MYSQL_USERNAME=${var.db_username}
     MYSQL_PASSWORD=<db_password 변수 값>
     AWS_ACCESS_KEY=<값>
