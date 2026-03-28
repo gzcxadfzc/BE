@@ -39,3 +39,5 @@ out/
 .env
 *.log
 .http/
+*.pem
+k6/setup-env.sh
