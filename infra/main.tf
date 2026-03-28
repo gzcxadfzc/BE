@@ -55,11 +55,12 @@ resource "aws_subnet" "public-a" {
 }
 
 # RDS 서브넷 그룹용 (AZ-b, DB subnet group은 2개 AZ 필요)
-resource "aws_subnet" "private-b" {
-  vpc_id            = aws_vpc.this.id
-  cidr_block        = "10.0.2.0/24"
-  availability_zone = "${var.aws-region}b"
-  tags = { Name = "littlewriter-load-test-private-b" }
+resource "aws_subnet" "public-b" {
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = "10.0.2.0/24"
+  availability_zone       = "${var.aws-region}b"
+  map_public_ip_on_launch = true
+  tags = { Name = "littlewriter-load-test-public-b" }
 }
 
 resource "aws_route_table" "public" {
@@ -75,6 +76,11 @@ resource "aws_route_table" "public" {
 
 resource "aws_route_table_association" "public-a" {
   subnet_id      = aws_subnet.public-a.id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "public-b" {
+  subnet_id      = aws_subnet.public-b.id
   route_table_id = aws_route_table.public.id
 }
 
@@ -138,11 +144,11 @@ resource "aws_security_group" "rds" {
   vpc_id = aws_vpc.this.id
 
   ingress {
-    description     = "MySQL from app-server"
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app-server.id]
+    description = "MySQL public access"
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
   egress {
     from_port   = 0
@@ -198,7 +204,7 @@ resource "aws_instance" "redis" {
 
 resource "aws_db_subnet_group" "this" {
   name       = "littlewriter-load-test"
-  subnet_ids = [aws_subnet.public-a.id, aws_subnet.private-b.id]
+  subnet_ids = [aws_subnet.public-a.id, aws_subnet.public-b.id]
   tags = { Name = "littlewriter-load-test-db-subnet" }
 }
 
@@ -217,7 +223,7 @@ resource "aws_db_instance" "mysql" {
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = [aws_security_group.rds.id]
 
-  publicly_accessible = false
+  publicly_accessible = true
   skip_final_snapshot = true
   deletion_protection = false
   multi_az            = false

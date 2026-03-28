@@ -108,6 +108,17 @@ storage:
 
 ---
 
+# 부하 테스트 (prod + load-test 프로파일 조합)
+# S3/AI 빈은 LoadTestConfig에서 mock으로 교체되지만,
+# S3Client 빈 생성 시 properties 바인딩이 먼저 일어나므로 더미 값 필요
+spring.config.activate.on-profile: load-test
+storage:
+  s3:
+    access-key: load-test-dummy
+    secret-key: load-test-dummy
+
+---
+
 # 🧩 테스트-인메모리 H2
 spring.config.activate.on-profile: test-in-memory
 spring:

@@ -9,6 +9,7 @@ spring.config.activate.on-profile:
   - test-in-memory
   - test
   - test-local
+  - load-test
 
 auth:
   jwt:

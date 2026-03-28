@@ -39,6 +39,13 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init
 
+      # TODO: 한 번 실행 후 삭제
+      - name: Terraform State MV
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform state mv aws_subnet.private-b aws_subnet.public-b || true
+        env:
+          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
+
       - name: Terraform Plan
         id: plan
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -81,6 +88,14 @@ jobs:
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init
+
+      # TODO: 한 번 실행 후 삭제
+      - name: Terraform State MV
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform state mv aws_subnet.private-b aws_subnet.public-b || true
+        env:
+          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
 
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
