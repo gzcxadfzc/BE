@@ -39,16 +39,6 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init
 
-      # TODO: 한 번 실행 후 삭제
-      - name: Terraform State MV
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: |
-          terraform state mv aws_security_group.app_server      aws_security_group.app-server || true
-          terraform state mv aws_instance.app_server            aws_instance.app-server       || true
-          terraform state mv aws_subnet.public_a                aws_subnet.public-a           || true
-          terraform state mv aws_subnet.private_b               aws_subnet.private-b          || true
-          terraform state mv aws_route_table_association.public_a aws_route_table_association.public-a || true
-
       - name: Terraform Plan
         id: plan
         working-directory: ${{ env.TF_WORKING_DIR }}
