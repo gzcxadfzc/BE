@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region = var.aws-region
 
   default_tags {
     tags = {
@@ -46,19 +46,19 @@ resource "aws_internet_gateway" "this" {
 }
 
 # EC2용 퍼블릭 서브넷 (AZ-a)
-resource "aws_subnet" "public_a" {
+resource "aws_subnet" "public-a" {
   vpc_id                  = aws_vpc.this.id
   cidr_block              = "10.0.1.0/24"
-  availability_zone       = "${var.aws_region}a"
+  availability_zone       = "${var.aws-region}a"
   map_public_ip_on_launch = true
   tags = { Name = "littlewriter-load-test-public-a" }
 }
 
 # RDS 서브넷 그룹용 (AZ-b, DB subnet group은 2개 AZ 필요)
-resource "aws_subnet" "private_b" {
+resource "aws_subnet" "private-b" {
   vpc_id            = aws_vpc.this.id
   cidr_block        = "10.0.2.0/24"
-  availability_zone = "${var.aws_region}b"
+  availability_zone = "${var.aws-region}b"
   tags = { Name = "littlewriter-load-test-private-b" }
 }
 
@@ -73,14 +73,14 @@ resource "aws_route_table" "public" {
   tags = { Name = "littlewriter-load-test-rt" }
 }
 
-resource "aws_route_table_association" "public_a" {
-  subnet_id      = aws_subnet.public_a.id
+resource "aws_route_table_association" "public-a" {
+  subnet_id      = aws_subnet.public-a.id
   route_table_id = aws_route_table.public.id
 }
 
 # ─── Security Groups ──────────────────────────────────────────────────────────
 
-resource "aws_security_group" "app_server" {
+resource "aws_security_group" "app-server" {
   name   = "littlewriter-load-test-app"
   vpc_id = aws_vpc.this.id
 
@@ -88,7 +88,7 @@ resource "aws_security_group" "app_server" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.allowed_ssh_cidr]
+    cidr_blocks = [var.allowed-ssh-cidr]
   }
   ingress {
     from_port   = 8080
@@ -114,14 +114,14 @@ resource "aws_security_group" "redis" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.allowed_ssh_cidr]
+    cidr_blocks = [var.allowed-ssh-cidr]
   }
   ingress {
     description     = "Redis from app-server"
     from_port       = 6379
     to_port         = 6379
     protocol        = "tcp"
-    security_groups = [aws_security_group.app_server.id]
+    security_groups = [aws_security_group.app-server.id]
   }
   egress {
     from_port   = 0
@@ -142,7 +142,7 @@ resource "aws_security_group" "rds" {
     from_port       = 3306
     to_port         = 3306
     protocol        = "tcp"
-    security_groups = [aws_security_group.app_server.id]
+    security_groups = [aws_security_group.app-server.id]
   }
   egress {
     from_port   = 0
@@ -156,12 +156,12 @@ resource "aws_security_group" "rds" {
 
 # ─── EC2: App Server ──────────────────────────────────────────────────────────
 
-resource "aws_instance" "app_server" {
+resource "aws_instance" "app-server" {
   ami                    = data.aws_ami.al2023.id
-  instance_type          = var.app_instance_type
-  subnet_id              = aws_subnet.public_a.id
-  vpc_security_group_ids = [aws_security_group.app_server.id]
-  key_name               = var.key_name
+  instance_type          = var.app-instance-type
+  subnet_id              = aws_subnet.public-a.id
+  vpc_security_group_ids = [aws_security_group.app-server.id]
+  key_name               = var.key-name
 
   user_data = <<-EOF
     #!/bin/bash
@@ -176,10 +176,10 @@ resource "aws_instance" "app_server" {
 
 resource "aws_instance" "redis" {
   ami                    = data.aws_ami.al2023.id
-  instance_type          = var.redis_instance_type
-  subnet_id              = aws_subnet.public_a.id
+  instance_type          = var.redis-instance-type
+  subnet_id              = aws_subnet.public-a.id
   vpc_security_group_ids = [aws_security_group.redis.id]
-  key_name               = var.key_name
+  key_name               = var.key-name
 
   user_data = <<-EOF
     #!/bin/bash
@@ -198,7 +198,7 @@ resource "aws_instance" "redis" {
 
 resource "aws_db_subnet_group" "this" {
   name       = "littlewriter-load-test"
-  subnet_ids = [aws_subnet.public_a.id, aws_subnet.private_b.id]
+  subnet_ids = [aws_subnet.public-a.id, aws_subnet.private-b.id]
   tags = { Name = "littlewriter-load-test-db-subnet" }
 }
 
@@ -206,21 +206,21 @@ resource "aws_db_instance" "mysql" {
   identifier        = "littlewriter-load-test"
   engine            = "mysql"
   engine_version    = "8.0"
-  instance_class    = var.db_instance_class
+  instance_class    = var.db-instance-class
   allocated_storage = 20
   storage_type      = "gp2"
 
   db_name  = "littlewriter"
-  username = var.db_username
+  username = var.db-username
   password = var.db_password
 
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = [aws_security_group.rds.id]
 
-  publicly_accessible     = false
-  skip_final_snapshot     = true
-  deletion_protection     = false
-  multi_az                = false
+  publicly_accessible = false
+  skip_final_snapshot = true
+  deletion_protection = false
+  multi_az            = false
 
   tags = { Name = "littlewriter-load-test-mysql" }
 }
