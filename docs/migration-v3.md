@@ -113,12 +113,12 @@ LLM 어댑터 = OpenAiApi 직접 의존, 프로바이더 교체 불가
                            │         └─────────────────────────────────┘
                            │ Redis PUBLISH
                            ▼
-                    ┌──────────────────┐     ┌──────────────────────┐
+                    ┌───────────────────┐     ┌──────────────────────┐
                     │      Redis        │────▶│  Spring Boot (모든   │
                     │  Pub/Sub channel  │     │  인스턴스가 구독)     │
                     │  Idempotency Key  │     └──────────────────────┘
                     │  BookInProgress   │              │ SSE push
-                    └──────────────────┘              ▼
+                    └───────────────────┘              ▼
                                                    Client
 ```
 
@@ -591,7 +591,112 @@ Phase 4는 선택사항. Phase 3 완료 후 언제든 독립적으로 추가 가
 
 ---
 
-## 6. 미결 판단 사항 (피드백 필요)
+## 6. 부하 테스트 전략
+
+### 6.1 목적
+
+v3 마이그레이션의 핵심 주장은 "Redis Lock이 도메인 불변식 보호를 맡는 구조가 불안정하다"는 것이다.
+부하 테스트는 이 주장을 정량적으로 검증하고, 각 Phase 완료 후 개선 효과를 측정하기 위해 사용한다.
+
+```
+v2 baseline 측정
+  → Phase 1 적용 후 재측정 (lock 안정성 개선 확인)
+  → Phase 3 적용 후 재측정 (Lock 제거, SQS 처리량 확인)
+```
+
+### 6.2 테스트 대상 및 근거
+
+**테스트 대상: `completeBook` (트랜잭션 경계 기준)**
+
+`generateWithAi`는 AI 호출(5~30초)이 Lock 내부에 있어 mock 시 Redis 연산만 남는다.
+의미 있는 부하를 생성하기 어렵다.
+
+`completeBook`은 OpenAI 호출이 없고 트랜잭션 경계가 명확하다.
+
+```
+Redis lock 획득
+  → Redis read (markAsPending)
+  → @Transactional saveFrom()
+      ├─ DB INSERT book
+      ├─ DB INSERT pages
+      └─ COMMIT → @Async S3 copy (mock 대상)
+  → Redis write (markAsCompleted)    ← P4 불일치 발생 지점
+Redis lock 해제
+```
+
+제거할 Network I/O는 S3 하나다. `AsyncBucketImageUploader`를 no-op으로 교체하면 된다.
+
+### 6.3 테스트 시나리오
+
+| 시나리오 | 설정 | 측정 목적 |
+|---------|------|----------|
+| A. 같은 bipId 동시 요청 | N VU → 동일 bipId | Lock contention, 실패율 (P3 재현) |
+| B. 다른 bipId 동시 요청 | N VU → 각자 다른 bipId | DB connection pool 압박, TPS |
+
+### 6.4 BIP 상태 관리
+
+`completeBook`은 `BookInProgress`가 `IN_PROGRESS` 상태여야 실행 가능하다.
+한 번 완료되면 `COMPLETED`로 전이되어 재사용 불가다. 도메인이 이를 강하게 제어한다.
+
+**해결: `initBook`을 VU setup으로 포함**
+
+`BookPageGenerator`를 mock으로 교체하면 `initBook`은 Redis write만 수행한다.
+
+```
+VU setup:    POST /initBook  (AI mock → 즉시 반환) → bipId 발급
+VU test:     POST /completeBook/{bipId}
+teardown:    Redis TTL 자동 만료
+```
+
+각 VU가 독립적인 BIP를 소유하므로 시나리오 A/B를 명확히 분리할 수 있다.
+
+### 6.5 인프라 구성
+
+로컬 환경으로 충분하다.
+
+```
+[로컬 k6]
+    ↓
+[로컬 Spring Boot]  ← test-local 프로파일
+    ├─ Redis: 127.0.0.1:6379
+    └─ MySQL: localhost:3306/little-writer-v2
+```
+
+클라우드 환경(infra/main.tf)은 프로덕션과 유사한 조건이 필요할 때만 사용한다.
+
+### 6.6 측정 도구 순서
+
+처음부터 Prometheus/Grafana를 구성하는 것은 오버엔지니어링이다.
+
+```
+1단계 — k6
+  TPS, p95/p99 응답 시간, 에러율
+  판단: "병목이 있다/없다"
+
+      ↓ 병목 발견 시
+
+2단계 — Spring Actuator + Micrometer
+  hikaricp_connections_active/pending
+  redis.lock.hold.duration
+  book.saveFrom.total
+
+      ↓ "왜" 느린지 파악이 필요할 때
+
+3단계 — Prometheus + Grafana
+  k6 결과와 앱 내부 메트릭을 시간축으로 겹쳐 원인 분석
+```
+
+### 6.7 Phase별 검증 포인트
+
+| Phase | 검증 항목 | 기대 변화 |
+|-------|---------|----------|
+| v2 baseline | Lock contention 실패율, p99 응답 시간 | 기준값 측정 |
+| Phase 1 적용 후 | Lock 해제 race condition 감소 여부 | 시나리오 A 실패율 감소 |
+| Phase 3 적용 후 | completeBook이 202 즉시 반환으로 전환 | p99 응답 시간 대폭 감소, TPS 향상 |
+
+---
+
+## 7. 미결 판단 사항 (피드백 필요)
 
 | # | 질문 | 선택지 |
 |---|------|--------|

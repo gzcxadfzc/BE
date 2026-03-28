@@ -2,7 +2,7 @@
 
 > **분석 대상**: `BookRepositoryAdapter.saveFrom()`, `BookInProgressLockExecutorAdapter`, `RedisLockManager`
 > **작성일**: 2026-02-04
-> **버전**: 1.0
+> **버전**: 1.1 (2026-03-28: 부하 테스트 계획 추가)
 
 ---
 
@@ -17,6 +17,7 @@
 7. [안정성 측정 방법](#7-안정성-측정-방법)
 8. [권장 개선 사항](#8-권장-개선-사항)
 9. [결론](#9-결론)
+10. [부하 테스트 계획](#10-부하-테스트-계획)
 
 ---
 
@@ -106,39 +107,39 @@ public Book saveFrom(BookInProgress bookInProgress, Function<BookInProgress, Boo
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  BookProgressService.generateWithAi (라인 56-66)                        │
+│  BookProgressService.generateWithAi (라인 56-66)                         │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│  ┌─────────────────┐                                                   │
-│  │ Redis Lock 획득  │ ← SET NX (atomic)                                 │
-│  └────────┬────────┘                                                   │
+│  ┌─────────────────┐                                                    │
+│  │ Redis Lock 획득  │ ← SET NX (atomic)                                  │
+│  └────────┬────────┘                                                    │
 │           │                                                             │
 │           ▼                                                             │
-│  ┌─────────────────────────────────────┐                               │
-│  │ Redis 조회 (BookInProgress)          │ ← Network I/O (~5ms)          │
-│  └────────┬────────────────────────────┘                               │
+│  ┌─────────────────────────────────────┐                                │
+│  │ Redis 조회 (BookInProgress)          │ ← Network I/O (~5ms)           │
+│  └────────┬────────────────────────────┘                                │
 │           │                                                             │
 │           ▼                                                             │
-│  ┌─────────────────────────────────────┐                               │
-│  │ AI API 호출 (bookPageGenerator)      │ ← Network I/O (5~30초)        │
-│  │ - 텍스트 생성                         │                               │
-│  │ - 이미지 생성                         │                               │
-│  └────────┬────────────────────────────┘                               │
+│  ┌─────────────────────────────────────┐                                │
+│  │ AI API 호출 (bookPageGenerator)      │ ← Network I/O (5~30초)         │
+│  │ - 텍스트 생성                         │                                │
+│  │ - 이미지 생성                         │                                │ 
+│  └────────┬────────────────────────────┘                                │
 │           │                                                             │
 │           ▼                                                             │
-│  ┌─────────────────────────────────────┐                               │
-│  │ 이미지 업로드 (imageRepository)       │ ← Network I/O (~500ms)        │
-│  └────────┬────────────────────────────┘                               │
+│  ┌─────────────────────────────────────┐                                │
+│  │ 이미지 업로드 (imageRepository)       │ ← Network I/O (~500ms)         │
+│  └────────┬────────────────────────────┘                                │
 │           │                                                             │
 │           ▼                                                             │
-│  ┌─────────────────────────────────────┐                               │
-│  │ Redis 저장 (addPageTo)               │ ← Network I/O (~5ms)          │
-│  └────────┬────────────────────────────┘                               │
+│  ┌─────────────────────────────────────┐                                │
+│  │ Redis 저장 (addPageTo)               │ ← Network I/O (~5ms)           │
+│  └────────┬────────────────────────────┘                                │
 │           │                                                             │
 │           ▼                                                             │
-│  ┌─────────────────┐                                                   │
-│  │ Redis Lock 해제  │ ← DEL (조건부)                                     │
-│  └─────────────────┘                                                   │
+│  ┌─────────────────┐                                                    │
+│  │ Redis Lock 해제  │ ← DEL (조건부)                                      │
+│  └─────────────────┘                                                    │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 
@@ -149,38 +150,38 @@ Lock 유지 시간: 평균 5.5초, 최대 32초
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  BookCompleteExecutor.completeBook (라인 29-39)                         │
+│  BookCompleteExecutor.completeBook (라인 29-39)                          │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│  ┌─────────────────┐                                                   │
-│  │ Redis Lock 획득  │ ← SET NX (atomic)                                 │
-│  └────────┬────────┘                                                   │
+│  ┌─────────────────┐                                                    │
+│  │ Redis Lock 획득  │ ← SET NX (atomic)                                  │
+│  └────────┬────────┘                                                    │
 │           │                                                             │
 │           ▼                                                             │
-│  ┌─────────────────────────────────────┐                               │
-│  │ Redis 조회 (BookInProgress)          │ ← Network I/O (~5ms)          │
-│  └────────┬────────────────────────────┘                               │
+│  ┌─────────────────────────────────────┐                                │
+│  │ Redis 조회 (BookInProgress)          │ ← Network I/O (~5ms)           │
+│  └────────┬────────────────────────────┘                                │
 │           │                                                             │
 │           ▼                                                             │
-│  ┌─────────────────────────────────────┐                               │
-│  │ DB 트랜잭션 시작                      │ ← Connection Pool 획득        │
-│  │                                       │                               │
-│  │  ├─ Book 저장                        │ ← DB I/O (~20ms)              │
-│  │  ├─ BookPage 일괄 저장               │ ← DB I/O (~30ms)              │
-│  │  └─ BookCharacter 조회               │ ← DB I/O (~10ms)              │
-│  │                                       │                               │
-│  │ DB 트랜잭션 커밋                      │ ← Connection Pool 반환        │
-│  └────────┬────────────────────────────┘                               │
+│  ┌─────────────────────────────────────┐                                │
+│  │ DB 트랜잭션 시작                      │ ← Connection Pool 획득          │
+│  │                                     │                                │
+│  │  ├─ Book 저장                        │ ← DB I/O (~20ms)               │
+│  │  ├─ BookPage 일괄 저장                │ ← DB I/O (~30ms)               │
+│  │  └─ BookCharacter 조회               │ ← DB I/O (~10ms)               │
+│  │                                     │                                │
+│  │ DB 트랜잭션 커밋                      │ ← Connection Pool 반환          │
+│  └────────┬────────────────────────────┘                                │
 │           │                                                             │
 │           ▼                                                             │
-│  ┌─────────────────────────────────────┐                               │
-│  │ Redis 저장 (markAsCompleted)         │ ← Network I/O (~5ms)          │
-│  └────────┬────────────────────────────┘                               │
+│  ┌─────────────────────────────────────┐                                │
+│  │ Redis 저장 (markAsCompleted)         │ ← Network I/O (~5ms)           │
+│  └────────┬────────────────────────────┘                                │
 │           │                                                             │
 │           ▼                                                             │
-│  ┌─────────────────┐                                                   │
-│  │ Redis Lock 해제  │                                                   │
-│  └─────────────────┘                                                   │
+│  ┌─────────────────┐                                                    │
+│  │ Redis Lock 해제  │                                                    │
+│  └─────────────────┘                                                    │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 
@@ -1061,3 +1062,135 @@ spring:
 - [Redisson Distributed Locks](https://github.com/redisson/redisson/wiki/8.-Distributed-locks-and-synchronizers)
 - [Spring Data Redis Documentation](https://docs.spring.io/spring-data/redis/docs/current/reference/html/)
 - [HikariCP Configuration](https://github.com/brettwooldridge/HikariCP#configuration-knobs-baby)
+
+---
+
+## 10. 부하 테스트 계획
+
+### 10.1 테스트 대상 선정
+
+부하 테스트 대상으로 `completeBook` 흐름을 선정한다.
+
+**`generateWithAi`를 선정하지 않은 이유**
+
+`generateWithAi`는 AI 호출(OpenAI, 5~30초)과 S3 업로드가 Lock 내부에 포함되어 있어
+Network I/O를 제거하면 Redis 연산만 남는다. 이 경우 Lock contention 자체가 거의 발생하지
+않아 의미 있는 부하를 생성하기 어렵다.
+
+**`completeBook`을 선정한 이유**
+
+```
+Redis lock 획득
+  → markAsPending()                           ← Redis read/write
+  → BookRepositoryAdapter.saveFrom()
+      ┌─ @Transactional START ─────────────────
+      │  PreAssignedUrl 계산 (I/O 없음)
+      │  eventPublisher.publishEvent()         ← 이벤트 등록만
+      │  bookJpaRepository.save()              ← DB INSERT
+      │  pageJpaRepository.saveAll()           ← DB INSERT (pages)
+      └─ COMMIT
+         └─ @Async handle(ImageUploadEvent)   ← S3 copy (별도 스레드)
+  → bookInProgressRepository.save(markAsCompleted())  ← Redis write
+Redis lock 해제
+```
+
+- OpenAI 호출 없음 → Network I/O 제거 대상이 S3 하나뿐
+- 트랜잭션 경계 명확: `saveFrom()` 단일 `@Transactional`
+- Redis lock + DB transaction 두 레이어를 동시에 측정 가능
+- P4 문제(DB 커밋 후 Redis 업데이트 실패로 인한 상태 불일치)를 부하 상황에서 재현 가능
+
+### 10.2 Network I/O 제거 전략
+
+제거 대상은 `AsyncBucketImageUploader` 하나다.
+
+```java
+// BookRepositoryAdapter.java:79-85
+@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+@Async(value = "transaction-event")
+public void handle(ImageUploadEvent event) {
+    imageUploader.copyToBookStorage(url);  // ← 이것만 mock
+}
+```
+
+테스트 환경에서 `AsyncBucketImageUploader`를 no-op Bean으로 교체하면
+S3 I/O가 완전히 제거된다. DB 트랜잭션, Redis lock은 실제 그대로 동작한다.
+
+### 10.3 인프라 구성
+
+클라우드 환경은 불필요하다. 로컬 환경으로 충분하다.
+
+**측정 목적**이 "Redis lock contention 동작", "DB 트랜잭션 처리량", "P4 상태 불일치 재현"이므로
+절대적인 TPS 숫자보다 **상대적인 동작 검증**이 핵심이다.
+
+```
+[로컬 k6]
+    ↓
+[로컬 Spring Boot] — test-local 프로파일
+    ├─ Redis: 127.0.0.1:6379
+    └─ MySQL: localhost:3306/little-writer-v2
+
+인프라 구성 파일: infra/main.tf (클라우드 환경이 필요한 경우에만 사용)
+```
+
+`test-local` 프로파일이 이미 로컬 Redis, 로컬 MySQL을 바라보도록 설정되어 있다.
+
+### 10.4 BIP 상태 관리
+
+`completeBook`은 `BookInProgress`가 `IN_PROGRESS` 상태여야 실행 가능하다.
+한 번 완료되면 `COMPLETED`로 전이되어 재사용이 불가능하다. 도메인이 이를 강하게 제어한다.
+
+```java
+// BookInProgress.java:98-110
+public BookInProgress markAsCompleted() {
+    if (status == Status.COMPLETED) {
+        throw BookProgressException.alreadyCompleted(id);  // 재진입 차단
+    }
+    ...
+}
+```
+
+**해결 전략: `initBook`을 VU setup으로 포함**
+
+`BookPageGenerator`를 mock으로 교체하면 `initBook`은 Redis write만 수행한다.
+k6 VU 라이프사이클을 다음과 같이 구성한다.
+
+```
+setup:    POST /initBook (AI mock → 즉시 반환) → bipId 발급
+test:     POST /completeBook/{bipId}
+teardown: Redis TTL로 자동 만료
+```
+
+각 VU가 독립적인 BIP를 소유하므로 **같은 bipId 동시 접근**(lock contention)과
+**다른 bipId 동시 접근**(DB 병목)을 시나리오로 분리해 측정할 수 있다.
+
+| 시나리오 | 설정 | 측정 항목 |
+|---------|------|----------|
+| A. 같은 bipId 동시 요청 | N VU → 동일 bipId | Lock contention, 실패율 |
+| B. 다른 bipId 동시 요청 | N VU → 각자 다른 bipId | DB connection pool 압박, TPS |
+
+### 10.5 측정 도구 사용 순서
+
+단계적으로 적용한다. 처음부터 Prometheus/Grafana를 구성하는 것은 오버엔지니어링이다.
+
+```
+1단계 — k6만 사용
+  목적: 처리량(TPS), 응답 시간(p95/p99), 에러율 측정
+  판단: "병목이 있다/없다"
+
+        ↓ 에러 또는 지연 발견 시
+
+2단계 — Spring Actuator + Micrometer 활성화
+  확인 대상:
+    - HikariCP connection pool: hikaricp_connections_active, pending
+    - Redis lock: redis.lock.hold.duration (6.1.1 참고)
+    - DB transaction: book.saveFrom.total (6.3 참고)
+
+        ↓ 특정 메트릭이 튀는 원인 파악이 필요할 때
+
+3단계 — Prometheus + Grafana 연동
+  목적: k6 결과와 앱 내부 메트릭을 시간축으로 겹쳐서 원인 분석
+  대시보드: 9.3 참고
+```
+
+**Prometheus + Grafana가 필요한 시점**은 k6가 "느리다"고 알려준 이후,
+그 원인이 HikariCP 고갈인지, GC 압박인지, Redis 지연인지 구분해야 할 때다.
