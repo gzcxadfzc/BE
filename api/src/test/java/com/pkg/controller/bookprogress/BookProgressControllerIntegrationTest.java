@@ -1017,7 +1017,10 @@ class BookProgressControllerIntegrationTest {
         afterCompletionRequest.start();
         startLatch.countDown();
 
+        boolean completed = completeLatch.await(10, TimeUnit.SECONDS);
+
         // Then
+        assertThat(completed).isTrue();
         assertThat(response[0].getStatus()).isEqualTo(200);
         assertThat(response[1].getStatus()).isEqualTo(409);
     }

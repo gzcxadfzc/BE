@@ -54,6 +54,11 @@ storage:
     jdbcUrl: ${JDBC_URL}
     username: ${MYSQL_USERNAME}
     password: ${MYSQL_PASSWORD}
+    maximum-pool-size: 50
+    minimum-idle: 5
+    connection-timeout: 30000
+    idle-timeout: 600000
+    max-lifetime: 1800000
   s3:
     bucket: littlewriter
     region: ap-northeast-2
@@ -129,6 +134,7 @@ storage:
     jdbcUrl: ${JDBC_URL}
     username: ${MYSQL_USERNAME}
     password: ${MYSQL_PASSWORD}
+    maximum-pool-size: 50
   s3:
     access-key: load-test-dummy
     secret-key: load-test-dummy
