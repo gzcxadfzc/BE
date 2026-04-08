@@ -28,6 +28,8 @@ public class WebSecurityConfig {
     @Bean
     public List<String> shouldNotFilterUri() {
         return List.of(
+                "/actuator/health",
+                "/actuator/prometheus",
                 "/api/v1/health",
                 "/api/v1/book/board/**",
                 "/api/v1/auth/**",

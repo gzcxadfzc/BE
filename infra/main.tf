@@ -129,6 +129,13 @@ resource "aws_security_group" "redis" {
     protocol        = "tcp"
     security_groups = [aws_security_group.app-server.id]
   }
+  ingress {
+    description = "Redis from Lambda (public)"
+    from_port   = 6379
+    to_port     = 6379
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
   egress {
     from_port   = 0
     to_port     = 0
@@ -168,6 +175,7 @@ resource "aws_instance" "app-server" {
   subnet_id              = aws_subnet.public-a.id
   vpc_security_group_ids = [aws_security_group.app-server.id]
   key_name               = var.key-name
+  iam_instance_profile   = aws_iam_instance_profile.app-server.name
 
   user_data = <<-EOF
     #!/bin/bash

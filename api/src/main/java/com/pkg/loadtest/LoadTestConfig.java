@@ -1,5 +1,6 @@
 package com.pkg.loadtest;
 
+import com.pkg.domain.ai.BookCharacterGenerator;
 import com.pkg.domain.ai.BookPageGenerated;
 import com.pkg.domain.ai.BookPageGenerator;
 import com.pkg.domain.image.ImageRepository;
@@ -18,6 +19,12 @@ import java.util.stream.Collectors;
 public class LoadTestConfig {
 
     private static final String FAKE_IMAGE_URL = "https://fake.image/load-test.png";
+
+    @Bean
+    @Primary
+    public BookCharacterGenerator noOpBookCharacterGenerator() {
+        return request -> FAKE_IMAGE_URL;
+    }
 
     @Bean
     @Primary

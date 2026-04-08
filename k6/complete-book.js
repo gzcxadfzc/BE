@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Rate, Counter } from 'k6/metrics';
 
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
+const BASE_URL = __ENV.BASE_URL || 'http://ec2-3-35-50-130.ap-northeast-2.compute.amazonaws.com:8080';
 
 // Custom metrics
 const completeBookDuration = new Trend('complete_book_duration', true);
@@ -17,8 +17,8 @@ export const options = {
             startVUs: 0,
             stages: [
                 { duration: '30s', target: 10 },   // 워밍업
-                { duration: '1m',  target: 30 },   // 부하 증가
-                { duration: '2m',  target: 30 },   // 안정 구간
+                { duration: '1m',  target: 100 },  // 부하 증가
+                { duration: '2m',  target: 100 },  // 안정 구간
                 { duration: '30s', target: 0 },    // 쿨다운
             ],
         },
@@ -75,7 +75,7 @@ function initBook(tok, charId) {
     const ok = check(res, { 'initBook 200': (r) => r.status === 200 });
     errorRate.add(!ok);
     if (!ok) return null;
-    return res.json('data.id');
+    return res.json('data.bookInProgress.id');
 }
 
 function completeBook(tok, bipId) {

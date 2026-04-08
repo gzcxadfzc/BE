@@ -27,15 +27,16 @@ fi
 echo "=== 2. /app 디렉터리 확인 ==="
 $SSH "mkdir -p /app"
 
-echo "=== 3. JAR 업로드 ==="
+echo "=== 3. 기존 앱 종료 ==="
+$SSH 'pkill java || true'
+$SSH 'for i in $(seq 1 10); do fuser 8080/tcp > /dev/null 2>&1 || break; sleep 1; done'
+
+echo "=== 4. JAR 업로드 ==="
 $SCP "$JAR_PATH" "ec2-user@$EC2_IP:/app/api.jar"
 
-echo "=== 4. start.sh 업로드 ==="
+echo "=== 5. start.sh 업로드 ==="
 $SCP "k6/start.sh" "ec2-user@$EC2_IP:/app/start.sh"
 $SSH "chmod +x /app/start.sh"
-
-echo "=== 5. 기존 앱 종료 ==="
-$SSH "pkill -f 'java.*api.jar' || true; sleep 2"
 
 echo "=== 6. 앱 기동 ==="
 $SSH "nohup bash /app/start.sh > /app/app.log 2>&1 &"
