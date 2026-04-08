@@ -46,4 +46,4 @@ k6/*.jfr
 k6/*.json
 
 .claude/
-data/k6/prometheus.yml
+data/*
