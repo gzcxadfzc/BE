@@ -17,13 +17,19 @@ resource "aws_s3_bucket_versioning" "lambda-artifacts" {
   }
 }
 
-# 초기 placeholder ZIP (Lambda 생성 시 필요)
-resource "aws_s3_object" "lambda-placeholder" {
-  bucket  = aws_s3_bucket.lambda-artifacts.id
-  key     = "bip-generator-placeholder.zip"
-  content = "placeholder"
+data "archive_file" "lambda" {
+  type        = "zip"
+  source_file = "${path.module}/../lambda/handler.py"
+  output_path = "${path.module}/lambda.zip"
+}
+
+resource "aws_s3_object" "lambda" {
+  bucket = aws_s3_bucket.lambda-artifacts.id
+  key    = "bip-generator.zip"
+  source = data.archive_file.lambda.output_path
+  etag   = data.archive_file.lambda.output_md5
 
   lifecycle {
-    ignore_changes = [content, etag]
+    ignore_changes = [etag]
   }
 }
