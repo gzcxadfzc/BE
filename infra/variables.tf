@@ -45,3 +45,9 @@ variable "db-instance-class" {
   type        = string
   default     = "db.t3.micro"
 }
+
+variable "ami-id" {
+  description = "EC2 AMI ID (고정, 의도적 업그레이드 시에만 변경)"
+  type        = string
+  default     = "ami-0daf9fb3629aafecd"
+}
