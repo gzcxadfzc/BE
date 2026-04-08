@@ -173,7 +173,7 @@ resource "aws_instance" "app-server" {
   tags = { Name = "littlewriter-load-test-app" }
 
   lifecycle {
-    ignore_changes = [ami, iam_instance_profile]
+    ignore_changes = [ami]
   }
 }
 
