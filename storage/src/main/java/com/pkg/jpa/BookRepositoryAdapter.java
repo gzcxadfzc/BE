@@ -7,18 +7,14 @@ import com.pkg.domain.character.BookCharacterRepository;
 import com.pkg.domain.common.PageInfo;
 import com.pkg.domain.common.PageResult;
 import com.pkg.domain.member.Actor;
-import com.pkg.s3.AsyncBucketImageUploader;
 import com.pkg.s3.ImageUploadEvent;
 import com.pkg.s3.PreAssignedUrl;
 import com.pkg.s3.S3KeyGen;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,19 +29,16 @@ public class BookRepositoryAdapter implements BookRepository {
     private final BookPageJpaRepository pageJpaRepository;
     private final BookCharacterRepository bookCharacterRepository;
     private final ApplicationEventPublisher eventPublisher;
-    private final AsyncBucketImageUploader imageUploader;
 
     public BookRepositoryAdapter(
             BookJpaRepository bookJpaRepository,
             BookPageJpaRepository pageJpaRepository,
             ApplicationEventPublisher eventPublisher,
-            BookCharacterRepository bookCharacterRepository,
-            AsyncBucketImageUploader imageUploader) {
+            BookCharacterRepository bookCharacterRepository) {
         this.bookJpaRepository = bookJpaRepository;
         this.pageJpaRepository = pageJpaRepository;
         this.bookCharacterRepository = bookCharacterRepository;
         this.eventPublisher = eventPublisher;
-        this.imageUploader = imageUploader;
     }
 
     @Transactional
@@ -74,14 +67,6 @@ public class BookRepositoryAdapter implements BookRepository {
                 bookEntity.getAuthor(),
                 bookCharacterRepository.retrieveById(bookEntity.getCharacterId())
         );
-    }
-
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Async(value = "transaction-event")
-    public void handle(ImageUploadEvent event) {
-        for(PreAssignedUrl url : event.jobs()) {
-            imageUploader.copyToBookStorage(url);
-        }
     }
 
     @Override

@@ -9,10 +9,6 @@ import com.pkg.authentication.token.AccessTokenAuthenticator;
 import com.pkg.authentication.token.MemberPrincipal;
 import com.pkg.domain.ai.BookPageGenerated;
 import com.pkg.domain.ai.BookPageGenerator;
-import com.pkg.domain.book.Book;
-import com.pkg.domain.bookprogress.BookCompleteExecutor;
-import com.pkg.domain.bookprogress.BookInProgress;
-import com.pkg.domain.bookprogress.BookInProgressRepository;
 import com.pkg.domain.image.ImageRepository;
 import com.pkg.domain.image.ImageUploadResult;
 import com.pkg.domain.member.Role;
@@ -1017,7 +1013,10 @@ class BookProgressControllerIntegrationTest {
         afterCompletionRequest.start();
         startLatch.countDown();
 
+        boolean completed = completeLatch.await(10, TimeUnit.SECONDS);
+
         // Then
+        assertThat(completed).isTrue();
         assertThat(response[0].getStatus()).isEqualTo(200);
         assertThat(response[1].getStatus()).isEqualTo(409);
     }

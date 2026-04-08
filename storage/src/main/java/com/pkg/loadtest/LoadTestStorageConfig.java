@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Configuration
 @Profile("load-test")
@@ -27,7 +28,11 @@ public class LoadTestStorageConfig {
 
             @Override
             public void copyToBookStorage(PreAssignedUrl url) {
-                // no-op
+                try {
+                    Thread.sleep(ThreadLocalRandom.current().nextLong(50, 101));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
         };
     }

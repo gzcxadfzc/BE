@@ -41,3 +41,9 @@ out/
 .http/
 *.pem
 k6/setup-env.sh
+k6/prometheus.yml
+k6/*.jfr
+k6/*.json
+
+.claude/
+data/k6/prometheus.yml

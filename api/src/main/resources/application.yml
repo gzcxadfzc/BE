@@ -6,6 +6,23 @@ spring:
       - storage.yml
       - ai.yml
 
+server:
+  tomcat:
+    mbeanregistry:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: little-writer-api
+
 logging:
   file:
     name: app.log

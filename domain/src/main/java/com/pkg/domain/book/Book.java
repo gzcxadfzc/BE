@@ -22,7 +22,7 @@ public record Book(
         if(bookInProgress.status() != BookInProgress.Status.PENDING) {
             throw BookProgressException.bookNotCompleted(bookInProgress.id());
         }
-        if(bookInProgress.ownerId() != command.actor().id()
+        if(!bookInProgress.ownerId().equals(command.actor().id())
            && !command.actor().role().equals(Role.ADMIN)) {
             throw BookException.notAuthorizedBookCreationFrom(bookInProgress);
         }

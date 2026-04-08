@@ -18,19 +18,6 @@ provider "aws" {
   }
 }
 
-data "aws_ami" "al2023" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-*-x86_64"]
-  }
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
 
 # ─── Network ──────────────────────────────────────────────────────────────────
 
@@ -129,6 +116,13 @@ resource "aws_security_group" "redis" {
     protocol        = "tcp"
     security_groups = [aws_security_group.app-server.id]
   }
+  ingress {
+    description = "Redis from Lambda (public)"
+    from_port   = 6379
+    to_port     = 6379
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
   egress {
     from_port   = 0
     to_port     = 0
@@ -163,11 +157,12 @@ resource "aws_security_group" "rds" {
 # ─── EC2: App Server ──────────────────────────────────────────────────────────
 
 resource "aws_instance" "app-server" {
-  ami                    = data.aws_ami.al2023.id
+  ami                    = var.ami-id
   instance_type          = var.app-instance-type
   subnet_id              = aws_subnet.public-a.id
   vpc_security_group_ids = [aws_security_group.app-server.id]
   key_name               = var.key-name
+  iam_instance_profile   = aws_iam_instance_profile.app-server.name
 
   user_data = <<-EOF
     #!/bin/bash
@@ -176,12 +171,16 @@ resource "aws_instance" "app-server" {
   EOF
 
   tags = { Name = "littlewriter-load-test-app" }
+
+  lifecycle {
+    ignore_changes = [ami, iam_instance_profile]
+  }
 }
 
 # ─── EC2: Redis ───────────────────────────────────────────────────────────────
 
 resource "aws_instance" "redis" {
-  ami                    = data.aws_ami.al2023.id
+  ami                    = var.ami-id
   instance_type          = var.redis-instance-type
   subnet_id              = aws_subnet.public-a.id
   vpc_security_group_ids = [aws_security_group.redis.id]
@@ -198,6 +197,10 @@ resource "aws_instance" "redis" {
   EOF
 
   tags = { Name = "littlewriter-load-test-redis" }
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
 }
 
 # ─── RDS: MySQL ───────────────────────────────────────────────────────────────

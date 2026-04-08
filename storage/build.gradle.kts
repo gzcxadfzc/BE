@@ -4,7 +4,7 @@ dependencies {
     implementation("software.amazon.awssdk:s3:2.35.1")
     implementation("com.fasterxml.jackson.core:jackson-databind")
 
-    runtimeOnly("com.mysql:mysql-connector-j")
+    runtimeOnly("com.mysql:mysql-connector-j:9.2.0")
     runtimeOnly("com.h2database:h2")
 
     testImplementation(project(":domain"))

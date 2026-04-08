@@ -78,7 +78,7 @@ public record BookInProgress(
         if(status == Status.COMPLETED) {
             throw BookProgressException.bookNotCompleted(id);
         }
-        if(command.currentUser().id() != ownerId
+        if(!command.currentUser().id().equals(ownerId)
            && !command.currentUser().role().equals(Role.ADMIN)) {
             throw BookProgressException.forbiddenResource();
         }
