@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 @Component
-@Transactional(transactionManager = "storageTransactionManager")
+@Transactional
 public class BookRepositoryAdapter implements BookRepository {
 
     private final BookJpaRepository bookJpaRepository;

@@ -26,18 +26,12 @@ import java.util.Map;
 @EntityScan("com.pkg.jpa")
 @EnableJpaRepositories(
         basePackages = "com.pkg.jpa",
-        entityManagerFactoryRef = "storageEntityManagerFactory",
-        transactionManagerRef = "storageTransactionManager"
+        entityManagerFactoryRef = "storageEntityManagerFactory"
 )
 public class JpaConfig {
 
-    @Bean
-    public PlatformTransactionManager transactionManager(EntityManagerFactory emf) {
-        return new JpaTransactionManager(emf);
-    }
-
     @Primary
-    @Bean(name = "storageTransactionManager")
+    @Bean(name = "transactionManager")
     public PlatformTransactionManager platformTransactionManager(
             @Qualifier("storageEntityManagerFactory") EntityManagerFactory emf
     ) {

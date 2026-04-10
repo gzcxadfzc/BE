@@ -3,6 +3,7 @@ package com.pkg.redis;
 import com.pkg.config.RedisConfig;
 import com.pkg.domain.bookprogress.AiGenerateResult;
 import com.pkg.domain.bookprogress.BookInProgress;
+import com.pkg.domain.bookprogress.BookProgressException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -110,7 +111,7 @@ class BookInProgressLockExecutorAdapterTest {
 
                     lockExecutorAdapter.updateWithLock(bipId, generator);
                     successCount.incrementAndGet();
-                } catch (IllegalStateException e) {
+                } catch (BookProgressException e) {
                     // Lock acquisition failed
                     failureCount.incrementAndGet();
                 } catch (InterruptedException e) {
@@ -288,8 +289,8 @@ class BookInProgressLockExecutorAdapterTest {
         Supplier<AiGenerateResult> generator = () -> new AiGenerateResult(mockBookInProgress, List.of("question"));
 
         assertThatThrownBy(() -> lockExecutorAdapter.updateWithLock(bipId, generator))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("이미 해당 자원에 대한 작업이 진행 중입니다");
+                .isInstanceOf(BookProgressException.class)
+                .hasMessageContaining("is generating page via ai");
 
         // Clean up
         testCompleteLatch.countDown();
@@ -357,7 +358,7 @@ class BookInProgressLockExecutorAdapterTest {
 
                     lockExecutorAdapter.updateWithLock(bipId, generator);
                     successCount.incrementAndGet();
-                } catch (IllegalStateException e) {
+                } catch (BookProgressException e) {
                     failureCount.incrementAndGet();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -423,7 +424,7 @@ class BookInProgressLockExecutorAdapterTest {
             try {
                 lockExecutorAdapter.updateWithLock(bipId, generator);
                 return null; // Should not reach here
-            } catch (IllegalStateException e) {
+            } catch (BookProgressException e) {
                 // Expected failure
                 try {
                     thread1CompleteLatch.await(5, TimeUnit.SECONDS); // Wait for thread 1 to complete

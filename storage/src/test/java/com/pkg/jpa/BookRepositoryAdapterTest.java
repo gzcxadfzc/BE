@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @ActiveProfiles("test-in-memory")
-@Import(BookRepositoryAdapter.class)
+@Import({BookRepositoryAdapter.class, BookCharacterRepositoryAdapter.class})
 class BookRepositoryAdapterTest {
 
     @Autowired

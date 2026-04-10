@@ -12,7 +12,7 @@ import java.util.function.Supplier;
 public class BookInProgressLockExecutorAdapter implements BookInProgressLockExecutor {
 
     private static final String BIP_LOCK_KEY_PREFIX = "bip:lock:";
-    private static final Long EXPIRATION_SEC = 120L;
+    private static final Long EXPIRATION_MS = 120_000L;
 
     private final RedisLockManager lockManager;
 
@@ -24,7 +24,7 @@ public class BookInProgressLockExecutorAdapter implements BookInProgressLockExec
     public AiGenerateResult updateWithLock(String bipId, Supplier<AiGenerateResult> generator) {
         try {
             String key = BIP_LOCK_KEY_PREFIX + bipId;
-            return lockManager.execute(key, EXPIRATION_SEC, generator);
+            return lockManager.execute(key, EXPIRATION_MS, generator);
         } catch (RedisLockException e) {
             throw BookProgressException.bookPageAlreadyGenerating(bipId);
         }
@@ -34,7 +34,7 @@ public class BookInProgressLockExecutorAdapter implements BookInProgressLockExec
     public Book saveWithLock(String bipId, Supplier<Book> generator) {
         try {
             String key = BIP_LOCK_KEY_PREFIX + bipId;
-            return lockManager.execute(key, EXPIRATION_SEC, generator);
+            return lockManager.execute(key, EXPIRATION_MS, generator);
         } catch (RedisLockException e) {
             throw BookProgressException.bookPageAlreadySaving(bipId);
         }
