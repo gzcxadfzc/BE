@@ -29,12 +29,10 @@ public class BookCompleteExecutor {
     public Book completeBook(CompleteBookCommand command) {
         return lockExecutor.saveWithLock(command.bookInProgressId(), () -> {
             BookInProgress target = getBookInProgress(command).markAsPending();
-            Book book = bookRepository.saveFrom(target, bip -> {
+            return bookRepository.saveFrom(target, bip -> {
                 validateNotNull(bip.character());
                 return Book.completeFromCommand(bip, command);
             });
-            bookInProgressRepository.save(target.markAsCompleted());
-            return book;
         });
     }
 

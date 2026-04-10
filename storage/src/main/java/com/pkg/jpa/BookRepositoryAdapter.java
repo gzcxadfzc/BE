@@ -7,6 +7,7 @@ import com.pkg.domain.character.BookCharacterRepository;
 import com.pkg.domain.common.PageInfo;
 import com.pkg.domain.common.PageResult;
 import com.pkg.domain.member.Actor;
+import com.pkg.redis.BookCompleteEvent;
 import com.pkg.s3.ImageUploadEvent;
 import com.pkg.s3.PreAssignedUrl;
 import com.pkg.s3.S3KeyGen;
@@ -50,8 +51,8 @@ public class BookRepositoryAdapter implements BookRepository {
             String preAssigned = S3KeyGen.getBucketHost() + urls.get(page.imageUrl()).destinationKey();
             return page.changeImageUrl(preAssigned);
         });
-        ImageUploadEvent event = new ImageUploadEvent(urls.values().stream().toList());
-        eventPublisher.publishEvent(event);
+        eventPublisher.publishEvent(new ImageUploadEvent(urls.values().stream().toList()));
+        eventPublisher.publishEvent(new BookCompleteEvent(bookInProgress.id()));
         Book book = converter.apply(updated);
         BookJpaEntity bookEntity = bookJpaRepository.save(BookJpaEntity.fromBook(book));
         List<BookPageJpaEntity> pageEntities = pageJpaRepository.saveAll(

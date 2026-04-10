@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 @ActiveProfiles("test")
 @DataRedisTest
@@ -573,5 +574,49 @@ class BookInProgressRepositoryAdapterTest {
         }
 
         System.out.println("통합: Multiple members integration test passed");
+    }
+
+    // ==================== markAsCompleted() 메서드 테스트 ====================
+
+    @Test
+    @DisplayName("markAsCompleted: IN_PROGRESS 상태를 COMPLETED로 변경한다")
+    void testMarkAsCompleted() {
+        // Given
+        adapter.save(testBookInProgress);
+
+        // When
+        adapter.markAsCompleted("test-book-001");
+
+        // Then
+        BookInProgress retrieved = adapter.retrieveById("test-book-001");
+        assertThat(retrieved).isNotNull();
+        assertThat(retrieved.status()).isEqualTo(BookInProgress.Status.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("markAsCompleted: 존재하지 않는 ID는 예외 없이 무시된다")
+    void testMarkAsCompletedNonExistent() {
+        // When & Then - should not throw
+        assertThatCode(() -> adapter.markAsCompleted("non-existent-id"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("markAsCompleted: 완료 후 기존 메타데이터가 유지된다")
+    void testMarkAsCompletedPreservesMetadata() {
+        // Given
+        adapter.save(testBookInProgress);
+
+        // When
+        adapter.markAsCompleted("test-book-001");
+
+        // Then
+        BookInProgress retrieved = adapter.retrieveById("test-book-001");
+        assertThat(retrieved).isNotNull();
+        assertThat(retrieved.status()).isEqualTo(BookInProgress.Status.COMPLETED);
+        assertThat(retrieved.id()).isEqualTo("test-book-001");
+        assertThat(retrieved.ownerId()).isEqualTo(1L);
+        assertThat(retrieved.backgroundInfo()).isEqualTo("숲속 친구들의 모험 이야기");
+        assertThat(retrieved.character().name()).isEqualTo("토끼 토리");
     }
 }
