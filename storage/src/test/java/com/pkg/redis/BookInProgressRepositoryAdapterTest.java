@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.redis.DataRedisTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.Arrays;
@@ -64,19 +65,24 @@ class BookInProgressRepositoryAdapterTest {
         );
     }
 
+    @Autowired
+    private RedisTemplate<String, String> stringRedisTemplate;
+
     @AfterEach
     void cleanup() {
-        // 테스트 데이터 정리
         String[] bookIds = {
                 "test-book-001", "test-book-002", "test-book-003",
-                "book-with-pages", "book-multiple-pages", "book-update-test"
+                "book-with-pages", "book-multiple-pages", "book-update-test",
+                "book-member1", "book-member2", "book-member3"
         };
 
         for (String bookId : bookIds) {
-            if (redisRepository.has(bookId)) {
-                redisRepository.delete(bookId);
-                pageRedisRepository.deleteAll(bookId);
-            }
+            redisRepository.delete(bookId);
+            pageRedisRepository.deleteAll(bookId);
+        }
+
+        for (long memberId = 1; memberId <= 3; memberId++) {
+            stringRedisTemplate.delete("member:" + memberId + ":bip");
         }
     }
 
@@ -387,7 +393,6 @@ class BookInProgressRepositoryAdapterTest {
                 testCharacter,
                 Collections.emptyList(),
                 BookInProgress.Status.IN_PROGRESS
-
         );
 
         BookCharacter member2Character = new BookCharacter(

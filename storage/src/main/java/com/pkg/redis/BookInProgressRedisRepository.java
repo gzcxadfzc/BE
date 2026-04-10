@@ -40,7 +40,7 @@ public class BookInProgressRedisRepository {
     }
 
     public List<BookInProgressRedisEntity> findByMemberId(Long memberId) {
-        String indexKey = "member:" + String.valueOf(memberId) + ":bip";
+        String indexKey = "member:" + memberId + ":bip";
         Set<String> ids = stringRedisTemplate.opsForSet().members(indexKey);
         if (ids == null) return List.of();
         return ids.stream()
