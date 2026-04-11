@@ -4,6 +4,7 @@ import com.pkg.controller.book.BookResponse;
 import com.pkg.controller.common.ApiResponse;
 import com.pkg.domain.ai.CreateOnePageCommand;
 import com.pkg.domain.book.Book;
+import com.pkg.domain.bookprogress.BookPagePollResult;
 import com.pkg.domain.bookprogress.*;
 import com.pkg.domain.member.Actor;
 import com.pkg.support.Authenticated;
@@ -73,5 +74,14 @@ public class BookProgressController {
     ) {
         BookInProgress bookInProgress = bookProgressService.retrieveById(currentUser, id);
         return ApiResponse.success(BookInProgressResponse.from(bookInProgress));
+    }
+
+    @GetMapping("/{id}/status")
+    public ApiResponse<BookPageStatusResponse> pollPageStatus(
+            @Authenticated Actor currentUser,
+            @PathVariable String id
+    ) {
+        BookPagePollResult result = bookProgressService.pollPageResult(currentUser, id);
+        return ApiResponse.success(BookPageStatusResponse.from(result));
     }
 }

@@ -71,6 +71,16 @@ value: {
 }
 ```
 
+### Pending Guard (메인 앱 설정 / Lambda 해제)
+```
+key: bip:pending-guard:{bipId}
+TTL: Lambda 최대 처리 시간 + 버퍼 (예: 600초)
+value: 1  (존재 여부만 확인)
+```
+- **메인 앱** (`generateWithAi` 임계 구역 내): PENDING 상태 저장 시 guard 키 함께 SET
+- **Lambda**: 처리 완료(성공/실패) 후 guard 키 DEL
+- **stale 판정**: `status == PENDING` AND `guard 없음` → Lambda 하드 크래시 등 비정상 종료 → IN_PROGRESS 취급
+
 ---
 
 ## 단계별 구현
@@ -418,6 +428,100 @@ public ResponseEntity<ApiResponse<BookPageAcceptedResponse>> generatePage(...) {
 
 ---
 
+### 3-G. Pending Guard 구현
+
+Lambda 하드 크래시 시 BIP가 PENDING에 영구 고착되는 문제를 TTL 기반 guard 키로 방지.
+
+#### 설계 원칙
+- guard 키는 **Lock 임계 구역 내부**에서만 설정 → Lock 보유자만 접근 가능
+- guard 키 설정과 PENDING 상태 저장은 동일 임계 구역에서 순차 실행 (별도 명령, Lua 불필요)
+  - 둘 사이 크래시: PENDING O + guard X → stale 판정으로 자동 복구
+- Lambda 명시적 처리(try/finally)가 1차 방어, TTL 만료가 백스톱
+
+#### 3-G-1. Guard 관리 포트 정의
+
+**신규 파일**: `domain/src/main/java/com/pkg/domain/bookprogress/BookInProgressPendingGuard.java`
+```java
+public interface BookInProgressPendingGuard {
+    void set(String bipId);
+    void delete(String bipId);
+    boolean exists(String bipId);
+}
+```
+
+#### 3-G-2. 인프라 구현체
+
+**신규 파일**: `storage/src/main/java/com/pkg/redis/BookInProgressPendingGuardAdapter.java`
+```java
+@Component
+public class BookInProgressPendingGuardAdapter implements BookInProgressPendingGuard {
+
+    private static final String GUARD_KEY_PREFIX = "bip:pending-guard:";
+    private static final long GUARD_TTL_SEC = 600L; // Lambda max + buffer
+
+    private final RedisTemplate<String, String> redisTemplate;
+
+    @Override
+    public void set(String bipId) {
+        redisTemplate.opsForValue()
+                .set(GUARD_KEY_PREFIX + bipId, "1", GUARD_TTL_SEC, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public void delete(String bipId) {
+        redisTemplate.delete(GUARD_KEY_PREFIX + bipId);
+    }
+
+    @Override
+    public boolean exists(String bipId) {
+        return Boolean.TRUE.equals(redisTemplate.hasKey(GUARD_KEY_PREFIX + bipId));
+    }
+}
+```
+
+#### 3-G-3. `generateWithAi` 내 guard 적용
+
+**파일**: `domain/src/main/java/com/pkg/domain/bookprogress/BookProgressService.java`
+
+```java
+// 변경 전 (PENDING 체크만)
+if (bip.status() == BookInProgress.Status.PENDING) {
+    throw BookProgressException.alreadyPending(command.bipId());
+}
+bookInProgressRepository.save(bip.markAsPending());
+
+// 변경 후 (stale PENDING 자동 복구 + guard 설정)
+if (bip.status() == BookInProgress.Status.PENDING) {
+    if (pendingGuard.exists(bip.id())) {
+        throw BookProgressException.alreadyPending(command.bipId()); // 진짜 처리 중
+    }
+    // guard 없음 → stale PENDING → IN_PROGRESS 취급, 진행
+}
+bookInProgressRepository.save(bip.markAsPending());
+pendingGuard.set(bip.id()); // Lock 임계 구역 내부, PENDING 저장 직후
+```
+
+#### 3-G-4. Lambda 계약 변경 (Python)
+
+Lambda는 처리 완료(성공/실패) 후 반드시 guard 키를 삭제:
+```python
+try:
+    result = generate_page(event)
+    update_bip_result(bip_id, result)       # bip:result:{bipId} SET
+finally:
+    redis.delete(f"bip:pending-guard:{bip_id}")  # guard 무조건 삭제
+```
+
+#### 테스트
+- guard 있을 때 PENDING → 409
+- guard 없을 때 PENDING (stale) → IN_PROGRESS 취급, 정상 진행
+- PENDING 저장 후 guard SET 확인
+- Lambda 완료 후 guard DEL 확인
+
+**커밋**: `feat(domain+storage): Pending Guard로 stale PENDING 자동 복구`
+
+---
+
 ### 3-F. 기존 코드 정리
 
 #### 삭제 대상
@@ -459,11 +563,12 @@ v3:  BookCompleteEvent 발행 → DB 저장
 ## 커밋 순서 요약
 
 ```
-커밋 1 (storage)        3-A — BookInProgressRedisEntity.Status PENDING 추가
-커밋 2 (domain+storage) 3-B — SQS 포트 정의 + 클라이언트 Bean + 발행 구현체
-커밋 3 (domain+api)     3-C + 3-E — 서비스 비동기 전환 + Controller 202 반환
+커밋 1 (storage)            3-A — BookInProgressRedisEntity.Status PENDING 추가
+커밋 2 (domain+storage)     3-B — SQS 포트 정의 + 클라이언트 Bean + 발행 구현체
+커밋 3 (domain+api)         3-C + 3-E — 서비스 비동기 전환 + Controller 202 반환
 커밋 4 (domain+storage+api) 3-D — 폴링 엔드포인트
-커밋 5 (전 모듈)        3-F — 미사용 코드 정리
+커밋 5 (domain+storage)     3-G — Pending Guard (stale PENDING 자동 복구)
+커밋 6 (전 모듈)            3-F — 미사용 코드 정리
 ```
 
 각 커밋은 단위 테스트 + 통합 테스트를 통과한 상태로 유지.

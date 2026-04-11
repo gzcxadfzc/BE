@@ -12,6 +12,7 @@ import com.pkg.domain.bookprogress.BookInProgressRepository;
 import com.pkg.domain.bookprogress.BookPageQueuePublisher;
 import com.pkg.domain.image.ImageRepository;
 import com.pkg.domain.member.Role;
+import org.springframework.data.redis.core.RedisTemplate;
 import com.pkg.jpa.*;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,6 +81,9 @@ class BookProgressControllerIntegrationTest {
 
     @Autowired
     private BookInProgressRepository bookInProgressRepository;
+
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
 
     private Long testMemberId;
     private Long testCharacterId;
@@ -386,12 +390,76 @@ class BookProgressControllerIntegrationTest {
                 .andDo(print());
     }
 
+    // ==================== pollPageStatus ====================
+
+    @Test
+    @DisplayName("GET /api/v1/book/progress/{id}/status - Lambda 미완료 시 PENDING 반환")
+    void pollPageStatus_shouldReturnPending_whenNoResult() throws Exception {
+        String bipId = initBookAndGetBipId();
+
+        mockMvc.perform(get("/api/v1/book/progress/{id}/status", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.status").value("PENDING"))
+                .andExpect(jsonPath("$.data.page").doesNotExist())
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/book/progress/{id}/status - Lambda 완료 시 COMPLETED + 페이지 반환")
+    void pollPageStatus_shouldReturnCompleted_whenResultExists() throws Exception {
+        String bipId = initBookAndGetBipId();
+        publishLambdaResult(bipId, 0);
+
+        mockMvc.perform(get("/api/v1/book/progress/{id}/status", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.data.page.pageIndex").value(0))
+                .andExpect(jsonPath("$.data.page.context").value("Alice found a magical door"))
+                .andExpect(jsonPath("$.data.page.imageUrl").isNotEmpty())
+                .andExpect(jsonPath("$.data.page.questions").isArray())
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/book/progress/{id}/status - 폴링 후 result 키 삭제 (멱등성)")
+    void pollPageStatus_shouldDeleteResult_afterCompleted() throws Exception {
+        String bipId = initBookAndGetBipId();
+        publishLambdaResult(bipId, 0);
+
+        // 첫 번째 폴링: COMPLETED
+        mockMvc.perform(get("/api/v1/book/progress/{id}/status", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"));
+
+        // 두 번째 폴링: result 키 삭제됐으므로 PENDING
+        mockMvc.perform(get("/api/v1/book/progress/{id}/status", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(jsonPath("$.data.status").value("PENDING"))
+                .andDo(print());
+    }
+
     // ==================== 헬퍼 ====================
 
     /** Lambda가 페이지를 추가한 상황을 시뮬레이션 */
     private void addPageToBip(String bipId) {
         BookPage page = new BookPage("Once upon a time...", "https://example.com/page1.jpg", 0);
         bookInProgressRepository.addPageTo(bipId, page);
+    }
+
+    /** Lambda가 bip:result:{bipId}에 결과를 저장한 상황을 시뮬레이션 */
+    private void publishLambdaResult(String bipId, int pageIndex) {
+        String json = """
+                {
+                  "pageIndex": %d,
+                  "context": "Alice found a magical door",
+                  "imageUrl": "https://s3.example.com/bip/%s/page-%d.png",
+                  "questions": ["What did Alice see?", "Where did she go?"]
+                }
+                """.formatted(pageIndex, bipId, pageIndex);
+        redisTemplate.opsForValue().set("bip:result:" + bipId, json);
     }
 
     private String initBookAndGetBipId() throws Exception {

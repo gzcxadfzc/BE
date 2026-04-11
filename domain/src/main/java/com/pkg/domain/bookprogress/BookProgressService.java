@@ -1,6 +1,7 @@
 package com.pkg.domain.bookprogress;
 
 import com.pkg.domain.ai.CreateOnePageCommand;
+import com.pkg.domain.book.BookPage;
 import com.pkg.domain.character.BookCharacter;
 import com.pkg.domain.character.BookCharacterRepository;
 import com.pkg.domain.member.Actor;
@@ -14,17 +15,20 @@ public class BookProgressService {
     private final BookInProgressRepository bookInProgressRepository;
     private final BookInProgressLockExecutor lockExecutor;
     private final BookPageQueuePublisher queuePublisher;
+    private final BookPageResultRepository bookPageResultRepository;
 
     public BookProgressService(
             BookCharacterRepository bookCharacterRepository,
             BookInProgressRepository bookInProgressRepository,
             BookInProgressLockExecutor lockExecutor,
-            BookPageQueuePublisher queuePublisher
+            BookPageQueuePublisher queuePublisher,
+            BookPageResultRepository bookPageResultRepository
     ) {
         this.bookCharacterRepository = bookCharacterRepository;
         this.bookInProgressRepository = bookInProgressRepository;
         this.lockExecutor = lockExecutor;
         this.queuePublisher = queuePublisher;
+        this.bookPageResultRepository = bookPageResultRepository;
     }
 
     public BookPageAccepted initBook(BookInitCommand command) {
@@ -66,6 +70,19 @@ public class BookProgressService {
         }
         validateOwner(found, user);
         return found;
+    }
+
+    public BookPagePollResult pollPageResult(Actor user, String bipId) {
+        BookInProgress bip = retrieveById(user, bipId);
+        return bookPageResultRepository.find(bipId)
+                .map(page -> {
+                    BookInProgress updated = bip.addBookPage(
+                            new BookPage(page.context(), page.imageUrl(), page.pageIndex()));
+                    bookInProgressRepository.save(updated);
+                    bookPageResultRepository.delete(bipId);
+                    return BookPagePollResult.completed(page);
+                })
+                .orElseGet(BookPagePollResult::pending);
     }
 
     private void validateOwner(BookInProgress bookInProgress, Actor user) {
