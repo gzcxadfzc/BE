@@ -28,7 +28,10 @@ public class BookCompleteExecutor {
 
     public Book completeBook(CompleteBookCommand command) {
         return lockExecutor.saveWithLock(command.bookInProgressId(), () -> {
-            BookInProgress target = getBookInProgress(command).markAsPending();
+            BookInProgress target = getBookInProgress(command);
+            if (target.status() == BookInProgress.Status.PENDING) {
+                throw BookProgressException.alreadyPending(command.bookInProgressId());
+            }
             return bookRepository.saveFrom(target, bip -> {
                 validateNotNull(bip.character());
                 return Book.completeFromCommand(bip, command);

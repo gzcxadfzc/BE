@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 @Component
 public interface BookInProgressLockExecutor {
 
-    AiGenerateResult updateWithLock(String lockKey, Supplier<AiGenerateResult> generator);
+    <T> T updateWithLock(String lockKey, Supplier<T> action);
 
     Book saveWithLock(String lockKey, Supplier<Book> generator);
 }

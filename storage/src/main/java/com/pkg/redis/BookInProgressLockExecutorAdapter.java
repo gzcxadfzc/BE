@@ -21,10 +21,10 @@ public class BookInProgressLockExecutorAdapter implements BookInProgressLockExec
     }
 
     @Override
-    public AiGenerateResult updateWithLock(String bipId, Supplier<AiGenerateResult> generator) {
+    public <T> T updateWithLock(String bipId, Supplier<T> action) {
         try {
             String key = BIP_LOCK_KEY_PREFIX + bipId;
-            return lockManager.execute(key, EXPIRATION_MS, generator);
+            return lockManager.execute(key, EXPIRATION_MS, action);
         } catch (RedisLockException e) {
             throw BookProgressException.bookPageAlreadyGenerating(bipId);
         }

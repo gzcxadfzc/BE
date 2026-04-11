@@ -1,93 +1,79 @@
 package com.pkg.domain.bookprogress;
 
-import com.pkg.domain.ai.BookPageGenerated;
-import com.pkg.domain.ai.BookPageGenerator;
 import com.pkg.domain.ai.CreateOnePageCommand;
-import com.pkg.domain.book.BookPage;
-import com.pkg.domain.book.BookRepository;
 import com.pkg.domain.character.BookCharacter;
 import com.pkg.domain.character.BookCharacterRepository;
-import com.pkg.domain.image.ImageRepository;
-import com.pkg.domain.image.ImageUploadResult;
 import com.pkg.domain.member.Actor;
 import com.pkg.domain.member.Role;
 import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 public class BookProgressService {
 
     private final BookCharacterRepository bookCharacterRepository;
     private final BookInProgressRepository bookInProgressRepository;
-    private final BookPageGenerator bookPageGenerator;
-    private final ImageRepository imageRepository;
     private final BookInProgressLockExecutor lockExecutor;
+    private final BookPageQueuePublisher queuePublisher;
 
     public BookProgressService(
             BookCharacterRepository bookCharacterRepository,
-            BookRepository bookRepository,
             BookInProgressRepository bookInProgressRepository,
-            BookPageGenerator bookPageGenerator,
-            ImageRepository imageRepository,
-            BookInProgressLockExecutor lockExecutor
+            BookInProgressLockExecutor lockExecutor,
+            BookPageQueuePublisher queuePublisher
     ) {
         this.bookCharacterRepository = bookCharacterRepository;
         this.bookInProgressRepository = bookInProgressRepository;
-        this.bookPageGenerator = bookPageGenerator;
-        this.imageRepository = imageRepository;
         this.lockExecutor = lockExecutor;
+        this.queuePublisher = queuePublisher;
     }
 
-    public AiGenerateResult initBook(BookInitCommand command) {
+    public BookPageAccepted initBook(BookInitCommand command) {
         BookCharacter bookCharacter = bookCharacterRepository.retrieveById(command.characterId());
-        if(bookCharacter == null) {
+        if (bookCharacter == null) {
             throw BookProgressException.notFound("not found bookCharacter :" + command.characterId());
         }
-        BookInProgress bookInProgress = BookInProgress.fromCommand(command, bookCharacter);
-        bookInProgressRepository.save(bookInProgress);
-        BookPageGenerated bookPageGenerated = bookPageGenerator.generatePageFrom(new BookToProgress(bookInProgress, command.userInput()));
-        ImageUploadResult result = imageRepository.uploadTemporary(bookPageGenerated.generatedIllustrationUrl());
-        BookInProgress updated = bookInProgressRepository.addPageTo(bookInProgress.id(), new BookPage(bookPageGenerated.context(), result.newUrl(), 0));
-        return new AiGenerateResult(updated, bookPageGenerated.questions());
+        BookInProgress bip = BookInProgress.fromCommand(command, bookCharacter);
+        bookInProgressRepository.save(bip);
+        queuePublisher.publish(new BookPageQueueMessage(
+                bip.id(), 0, command.userInput(),
+                bookCharacter.name(), bookCharacter.description(), command.background()));
+        return new BookPageAccepted(bip.id());
     }
 
-    public AiGenerateResult generateWithAi(CreateOnePageCommand command) {
+    public BookPageAccepted generateWithAi(CreateOnePageCommand command) {
         return lockExecutor.updateWithLock(command.bipId(), () -> {
-            List<String> generatedQuestions = new ArrayList<>();
             BookInProgress bip = bookInProgressRepository.retrieveById(command.bipId());
-            BookPageGenerated bookPageGenerated = bookPageGenerator.generatePageFrom(new BookToProgress(bip, command.userInput()));
-            ImageUploadResult result = imageRepository.uploadTemporary(bookPageGenerated.generatedIllustrationUrl());
-            BookInProgress updated = bip.appendPageFrom(command, bookPageGenerated.context(), result.newUrl());
-            BookInProgress appended = bookInProgressRepository.addPageTo(updated.id(), updated.previousPages().getLast());
-            return new AiGenerateResult(appended, generatedQuestions);
+            if (bip == null) {
+                throw BookProgressException.notFound(command.bipId());
+            }
+            if (bip.status() == BookInProgress.Status.PENDING) {
+                throw BookProgressException.alreadyPending(command.bipId());
+            }
+            validateOwner(bip, command.currentUser());
+            int nextPageIndex = bip.previousPages().size();
+            bookInProgressRepository.save(bip.markAsPending());
+            queuePublisher.publish(new BookPageQueueMessage(
+                    bip.id(), nextPageIndex, command.userInput(),
+                    bip.character().name(), bip.character().description(), bip.backgroundInfo()));
+            return new BookPageAccepted(bip.id());
         });
     }
 
     public BookInProgress retrieveById(Actor user, String bipId) {
         BookInProgress found = bookInProgressRepository.retrieveById(bipId);
-        if(found == null) {
+        if (found == null) {
             throw BookProgressException.notFound("not found book in progress : " + bipId);
         }
         validateOwner(found, user);
-        validateNotNull(found, bipId);
         return found;
     }
 
     private void validateOwner(BookInProgress bookInProgress, Actor user) {
-        if(user.role().equals(Role.ADMIN)) {
+        if (user.role().equals(Role.ADMIN)) {
             return;
         }
-        long currentUserId = user.id();
-        if(currentUserId != bookInProgress.ownerId()) {
+        if (!user.id().equals(bookInProgress.ownerId())) {
             throw BookProgressException.forbiddenResource();
-        }
-    }
-
-    private void validateNotNull(BookInProgress bookInProgress, String targetId) {
-        if(bookInProgress == null) {
-            throw BookProgressException.notFound(targetId);
         }
     }
 }
