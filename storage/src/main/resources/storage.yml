@@ -66,6 +66,10 @@ storage:
     access-key: ${AWS_ACCESS_KEY}
     cdn: https://d2ojpr6lej9d5i.cloudfront.net
 
+sqs:
+  queue-url: ${SQS_QUEUE_URL}
+  region: ap-northeast-2
+
 ---
 
 # 테스트 (기본 테스트 환경, Redis Local)
