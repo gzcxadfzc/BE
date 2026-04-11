@@ -44,14 +44,18 @@ class BookInProgressLockExecutorAdapterTest {
 
     @BeforeEach
     void setUp() {
-        // Clean up any existing locks before each test
-        redisTemplate.delete(BIP_LOCK_KEY_PREFIX + TEST_BIP_ID);
+        redisTemplate.execute((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+            connection.serverCommands().flushDb();
+            return null;
+        });
     }
 
     @AfterEach
     void cleanup() {
-        // Clean up locks after each test
-        redisTemplate.delete(BIP_LOCK_KEY_PREFIX + TEST_BIP_ID);
+        redisTemplate.execute((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+            connection.serverCommands().flushDb();
+            return null;
+        });
     }
 
     @Test

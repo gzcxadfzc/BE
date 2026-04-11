@@ -72,10 +72,12 @@ JDBC + no-VT가 현재 환경에서 최적. R2DBC 전환 없이 VT 도입 시 `R
 ```
 v2: 불변식 = Redis Lock이 보호  → Lock 실패 = 불변식 위반 가능
 
-v3: 불변식 = PENDING 상태가 표현 → 도메인 상태 자체가 중복 처리 차단
-    SQS FIFO                     → 인프라 보조 (직렬 큐잉)
-    Redis                        → 캐시/신호 역할로 격리
+v3: 불변식 = Redis Lock 유지 (generateWithAi) → 동시 요청 시 userInput이 달라질 수 있어 race condition은 허용 불가
+    SQS FIFO MessageDeduplicationId           → 처리 중복 하드 보장 (2차 방어)
+    PENDING 상태                               → 순차 중복 요청 즉시 차단 (409)
+    Redis                                      → 캐시/신호 역할로 격리
 ```
+> Lock 제거 검토 내용 및 결정 이유: `docs/lock.md` 참고
 
 ---
 
@@ -379,12 +381,14 @@ GET /api/v1/book/progress/{id}/status
 `bip:result` DEL 이전에 DB 저장이 완료되지 않으면 중복 저장 위험.
 → DB 저장 성공 후 DEL. 실패 시 Redis 키 유지 → 다음 폴링에서 재시도.
 
-#### 3-5. Redis Lock 제거
+#### 3-5. Redis Lock 처리
 
-| 현재 Lock | v3 대체 | 제거 |
+| 현재 Lock | v3 결정 | 이유 |
 |-----------|---------|------|
-| generateWithAi Lock | SQS FIFO MessageGroupId | 제거 |
-| completeBook Lock | PENDING 상태 체크 | 제거 |
+| generateWithAi Lock | **유지** | race condition 시 userInput이 달라질 수 있음. SQS dedup은 처리 중복만 방지하고 호출자에게 알리지 않음 |
+| completeBook Lock | 별도 검토 | 동시 완성 요청 시 Book 중복 생성 위험 |
+
+> 상세 분석: `docs/lock.md` 참고
 
 #### 3-6. ImageUploadEventHandler 제거 (P5)
 
@@ -430,7 +434,7 @@ public class SseBookProgressNotifier implements BookProgressNotifier {
 | ~~`LLMProvider` / `LLMGateway`~~ | ~~2~~ | Python Lambda 전환으로 불필요 |
 | `BookInProgressRedisEntity.Status` | 3 | PENDING 추가 |
 | `BookProgressController` | 3 | 202 반환, 폴링 엔드포인트 추가 |
-| `BookProgressService` | 3 | SQS 발행, PENDING 처리, Lock 제거 |
+| `BookProgressService` | 3 | SQS 발행, PENDING 처리, Lock 유지 (generateWithAi) |
 | SQS 클라이언트 Bean | 3 | application.yml + SQS config 추가 |
 | Python Lambda ✅ | 3 | lambda/handler.py (멱등성, Mock LLM, Redis 저장) |
 | `ImageUploadEventHandler` | 3 | Lambda 이미지 위임으로 삭제 |

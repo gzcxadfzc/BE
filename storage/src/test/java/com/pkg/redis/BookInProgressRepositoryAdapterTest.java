@@ -69,22 +69,20 @@ class BookInProgressRepositoryAdapterTest {
     @Autowired
     private RedisTemplate<String, String> stringRedisTemplate;
 
+    @BeforeEach
+    void flushRedis() {
+        stringRedisTemplate.execute((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+            connection.serverCommands().flushDb();
+            return null;
+        });
+    }
+
     @AfterEach
     void cleanup() {
-        String[] bookIds = {
-                "test-book-001", "test-book-002", "test-book-003",
-                "book-with-pages", "book-multiple-pages", "book-update-test",
-                "book-member1", "book-member2", "book-member3"
-        };
-
-        for (String bookId : bookIds) {
-            redisRepository.delete(bookId);
-            pageRedisRepository.deleteAll(bookId);
-        }
-
-        for (long memberId = 1; memberId <= 3; memberId++) {
-            stringRedisTemplate.delete("member:" + memberId + ":bip");
-        }
+        stringRedisTemplate.execute((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+            connection.serverCommands().flushDb();
+            return null;
+        });
     }
 
     // ==================== save() 메서드 테스트 ====================
@@ -574,6 +572,44 @@ class BookInProgressRepositoryAdapterTest {
         }
 
         System.out.println("통합: Multiple members integration test passed");
+    }
+
+    // ==================== PENDING 상태 테스트 ====================
+
+    @Test
+    @DisplayName("Status.fromDomain: PENDING 도메인 상태를 Redis PENDING으로 변환한다")
+    void testFromDomainPending() {
+        BookInProgressRedisEntity.Status result = BookInProgressRedisEntity.Status.fromDomain(BookInProgress.Status.PENDING);
+        assertThat(result).isEqualTo(BookInProgressRedisEntity.Status.PENDING);
+    }
+
+    @Test
+    @DisplayName("Status.toDomain: Redis PENDING을 도메인 PENDING으로 변환한다")
+    void testToDomainPending() {
+        BookInProgress.Status result = BookInProgressRedisEntity.Status.toDomain(BookInProgressRedisEntity.Status.PENDING);
+        assertThat(result).isEqualTo(BookInProgress.Status.PENDING);
+    }
+
+    @Test
+    @DisplayName("save/retrieveById: PENDING 상태를 저장하고 조회하면 PENDING이 유지된다")
+    void testSaveAndRetrievePendingStatus() {
+        // Given
+        BookInProgress pending = new BookInProgress(
+                "test-book-003",
+                1L,
+                "PENDING 테스트",
+                testCharacter,
+                Collections.emptyList(),
+                BookInProgress.Status.PENDING
+        );
+
+        // When
+        adapter.save(pending);
+        BookInProgress retrieved = adapter.retrieveById("test-book-003");
+
+        // Then
+        assertThat(retrieved).isNotNull();
+        assertThat(retrieved.status()).isEqualTo(BookInProgress.Status.PENDING);
     }
 
     // ==================== markAsCompleted() 메서드 테스트 ====================
