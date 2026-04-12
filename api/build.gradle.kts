@@ -8,7 +8,6 @@ dependencies {
     implementation(project(":auth"))
     implementation(project(":domain"))
     implementation(project(":core"))
-    implementation(project(":ai"))
 
     runtimeOnly(project(":storage"))
 
@@ -31,7 +30,6 @@ tasks.register<Copy>("copyResourcesConfig") {
     from(project(":auth").file("src/main/resources"))
     from(project(":storage").file("src/main/resources"))
     from(project(":core").file("src/main/resources"))
-    from(project(":ai").file("src/main/resources"))
 
     into(file("$projectDir/build/resources/main"))
 

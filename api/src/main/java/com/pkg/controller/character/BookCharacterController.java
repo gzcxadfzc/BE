@@ -4,9 +4,11 @@ import com.pkg.controller.common.ApiResponse;
 import com.pkg.domain.character.BookCharacter;
 import com.pkg.domain.character.BookCharacterGenerateRequest;
 import com.pkg.domain.character.BookCharacterService;
+import com.pkg.domain.character.CharacterPollResult;
 import com.pkg.domain.member.Actor;
 import com.pkg.support.Authenticated;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,11 +39,28 @@ public class BookCharacterController {
     }
 
     @PostMapping("/create")
-    public ApiResponse<BookCharacterResponse> createBookCharacter(
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<CharacterStatusResponse> requestCreate(
             @Valid @RequestBody BookCharacterCreationRequest request,
             @Authenticated Actor currentUser) {
         BookCharacterGenerateRequest generateRequest = request.toGenerateRequest(currentUser);
-        BookCharacter bookCharacter = bookCharacterService.create(generateRequest);
-        return ApiResponse.success(BookCharacterResponse.fromBookCharacter(bookCharacter));
+        String cipId = bookCharacterService.requestCreate(generateRequest);
+        return ApiResponse.success(new CharacterStatusResponse(cipId, "PENDING"));
+    }
+
+    @GetMapping("/{cipId}/status")
+    public ApiResponse<CharacterStatusResponse> pollStatus(
+            @PathVariable String cipId,
+            @Authenticated Actor currentUser) {
+        CharacterPollResult result = bookCharacterService.pollStatus(currentUser, cipId);
+        return ApiResponse.success(new CharacterStatusResponse(cipId, result.status()));
+    }
+
+    @PostMapping("/{cipId}/complete")
+    public ApiResponse<BookCharacterResponse> completeCharacter(
+            @PathVariable String cipId,
+            @Authenticated Actor currentUser) {
+        BookCharacter character = bookCharacterService.completeCharacter(currentUser, cipId);
+        return ApiResponse.success(BookCharacterResponse.fromBookCharacter(character));
     }
 }

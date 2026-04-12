@@ -3,4 +3,3 @@ spring:
     import:
       - storage.yml
       - auth.yml
-      - ai.yml
