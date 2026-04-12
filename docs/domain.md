@@ -7,9 +7,10 @@
 | Member | `domain.member` | RDS | Member |
 | Book | `domain.book` | RDS | Book |
 | BookProgress | `domain.bookprogress` | Redis | BookInProgress |
-| Character | `domain.character` | RDS | BookCharacter |
-| AI | `domain.ai` | - | (interfaces only) |
+| Character | `domain.character` | Redis(진행중) + RDS(완성) | CharacterInProgress, BookCharacter |
 | Image | `domain.image` | S3 | - |
+
+> **v3**: `domain.ai` 컨텍스트 제거. LLM 호출은 Lambda가 전담하며 Spring 앱에서 직접 호출하지 않음.
 
 ---
 
@@ -78,7 +79,7 @@ Book (record)
 ```
 BookPage (record)
   - String context       ← 페이지 본문
-  - String imageUrl      ← 삽화 URL
+  - String imageUrl      ← 삽화 URL (Lambda가 S3에 직접 업로드)
   - int pageNumber       ← 0-based
 
 BookThumbnail (record)
@@ -93,9 +94,12 @@ BookThumbnail (record)
 ```java
 // Book.java
 static Book completeFromCommand(BookInProgress bip, CompleteBookCommand cmd)
-  // Validation: bip.status == PENDING         → BookProgressException.bookNotCompleted()
-  // Validation: actor == owner || ADMIN       → BookException.notAuthorizedBookCreationFrom()
+  // Validation: bip.status == IN_PROGRESS    → BookProgressException.bookNotCompleted()
+  // Validation: actor == owner || ADMIN      → BookException.notAuthorizedBookCreationFrom()
 ```
+
+> **v3 변경**: `completeFromCommand` 상태 체크가 PENDING → IN_PROGRESS로 변경됨.
+> PENDING은 Lambda 처리 중임을 의미하므로 completeBook 불가 (409).
 
 ### Repository
 ```java
@@ -107,7 +111,8 @@ PageResult<BookThumbnail> retrieveThumbnails(BookRetrieveQuery query)
 ```
 
 ### Domain Rules
-- `BookInProgress` 상태가 **PENDING**일 때만 `Book`으로 완성 가능
+- `BookInProgress` 상태가 **IN_PROGRESS**일 때만 `Book`으로 완성 가능
+- PENDING 상태에서 completeBook 호출 시 409 (Lambda 처리 중)
 - 완성은 소유자 또는 ADMIN만 가능
 - 첫 페이지의 imageUrl이 커버 이미지
 
@@ -134,57 +139,36 @@ BookInProgress (record)
   - Status status           ← IN_PROGRESS | PENDING | COMPLETED
 ```
 
-### Status State Machine
+### Status State Machine (v3)
 
-**현재 (v2) — completeBook 내에서 원자적 전환**
 ```
-              initBook()                    generateWithAi()
-   ──────────────────────────► IN_PROGRESS ──────────────────────► IN_PROGRESS
-                                    │          (LLM 직접 호출,
-                                    │           페이지 추가 후 유지)
-                        completeBook │ markAsPending()
-                                    ▼
-                                 PENDING
-                                    │
-                      Book 저장 후  │ markAsCompleted()
-                                    ▼
-                                COMPLETED (불변)
+initBook()              generateWithAi()        pollPageResult() 성공
+  ──────► IN_PROGRESS ──────────────────► PENDING ──────────────► IN_PROGRESS
+               ▲           (Lock + guard SET,        (Lambda 결과 감지,
+               │            SQS 발행)                 Redis DEL, 페이지 저장)
+               │
+        completeBook() ← IN_PROGRESS 상태에서만 가능
+               │
+               ▼
+            COMPLETED (불변)
 ```
 
-> **v3 목표 — generateWithAi 비동기 전환**
-> `generateWithAi()` 호출 시 즉시 LLM 호출하지 않고, SQS에 메시지 발행 후 PENDING으로 전환.
-> Lambda 처리 완료 → Redis 저장 → 폴링 엔드포인트가 감지 → 페이지 DB 저장 → IN_PROGRESS 복귀.
-> `completeBook`의 PENDING 전환은 v2/v3 모두 동일하게 유지.
+- **PENDING → 재요청**: guard 있으면 409, guard 없으면 stale → IN_PROGRESS 취급
+- **PENDING → completeBook**: 409 (Lambda 처리 중)
 
 ### State Transition Methods
 ```java
-// BookInProgress.java
-
 markAsPending()
-  // 전제: status != COMPLETED (위반 시 alreadyCompleted())
+  // 전제: status != COMPLETED
   // 결과: status → PENDING
 
 markAsCompleted()
-  // 전제: status != COMPLETED (위반 시 alreadyCompleted())
+  // 전제: status != COMPLETED
   // 결과: status → COMPLETED
 
 addBookPage(BookPage page)
-  // 전제: status != COMPLETED (위반 시 bookNotCompleted())  ← 예외명 주의
   // 결과: 페이지 추가, status → IN_PROGRESS
-
-appendPageFrom(CreateOnePageCommand cmd, String context, String imageUrl)
-  // 전제: status != COMPLETED (위반 시 bookNotCompleted())
-  // 전제: actor == owner || ADMIN (위반 시 forbiddenResource())
-  // 결과: 페이지 추가 (pageNumber = previousPages.size()), status → IN_PROGRESS
-
-changeBookPages(UnaryOperator<List<BookPage>> modifier)
-  // 전제: status != COMPLETED (위반 시 bookNotCompleted())
-
-changeBookPage(UnaryOperator<BookPage> modifier)
-  // 전제: status != COMPLETED (위반 시 alreadyCompleted())
 ```
-
-> **예외명 주의**: `bookNotCompleted()`는 이름과 달리 "이미 완료됨" 상황에서 발생하는 경우도 있음. 실제로는 "페이지 추가 불가 상태" 의미.
 
 ### Commands
 ```
@@ -194,7 +178,7 @@ BookInitCommand
   - Actor currentUser
   - String userInput
 
-CreateOnePageCommand (ai 패키지)
+CreateOnePageCommand
   - String bipId
   - String userInput
   - Actor currentUser
@@ -204,6 +188,17 @@ CompleteBookCommand
   - String bookInProgressId
   - String title
   - String author
+```
+
+### Queue Message
+```java
+BookPageQueueMessage
+  - String bipId
+  - int pageIndex
+  - String userInput
+  - String characterName
+  - String characterDescription
+  - String backgroundInfo
 ```
 
 ### Repository
@@ -216,49 +211,39 @@ BookInProgress addPageTo(String id, BookPage page)
 
 ### Services
 
-**BookProgressService** (v2 현재 구현)
+**BookProgressService** (v3 구현)
 ```java
-// initBook: BIP 생성 → LLM 직접 호출 → 이미지 임시 업로드 → 페이지 저장
-AiGenerateResult initBook(BookInitCommand command)
+// initBook: BIP 생성 → SQS 발행(pageIndex=0) → 202
+BookPageAccepted initBook(BookInitCommand command)
 
-// generateWithAi: Redis Lock → LLM 직접 호출 → 페이지 추가
-AiGenerateResult generateWithAi(CreateOnePageCommand command)
+// generateWithAi: Lock → stale PENDING 판정 → PENDING 저장 → guard SET → SQS 발행 → 202
+BookPageAccepted generateWithAi(CreateOnePageCommand command)
+
+// pollPageResult: Redis 결과 확인 → 있으면 페이지 저장 → Redis DEL
+BookPagePollResult pollPageResult(Actor user, String bipId)
 
 // 소유자 또는 ADMIN만 조회 가능
 BookInProgress retrieveById(Actor user, String bipId)
 ```
 
-> **v3 목표**
-> ```java
-> // initBook: BIP 생성 → SQS 발행 → PENDING 전환 → 202 반환
-> // generateWithAi: PENDING 전환 → SQS 발행 → 202 반환 (Lock 제거)
-> ```
-
-**BookCompleteExecutor** (v2 현재 구현)
+**BookCompleteExecutor** (v3 구현)
 ```java
-// completeBook 흐름:
-// 1. lockExecutor.saveWithLock(bipId, ...)
-// 2. bip.markAsPending()                           IN_PROGRESS → PENDING
-// 3. bookRepository.saveFrom(bip, ...)             Book.completeFromCommand() 호출 (PENDING 검증)
-// 4. bookInProgressRepository.save(bip.markAsCompleted())  PENDING → COMPLETED
+// completeBook: Lock 없이 직접 실행
+// BIP 상태 IN_PROGRESS 검증 (PENDING → 409)
+// bookRepository.saveFrom() → BookCompleteEvent 발행 → COMPLETED 저장
 Book completeBook(CompleteBookCommand command)
 ```
 
-> **v3 목표**: Lock 제거. PENDING 상태 자체가 중복 완성 방지 역할.
+### Pending Guard
+```
+key: bip:pending-guard:{bipId}    TTL: 600s
 
-**BookInProgressLockExecutor** (interface, Redis 구현)
-```java
-AiGenerateResult updateWithLock(String lockKey, Supplier<AiGenerateResult> generator)
-Book saveWithLock(String lockKey, Supplier<Book> generator)
+Set  : generateWithAi Lock 임계 구역 내 (PENDING 저장 직후)
+Del  : Lambda finally 블록 (성공/실패 무관)
+stale: PENDING + guard 없음 → IN_PROGRESS 취급
 ```
 
-Lock Key: `bip:lock:{bipId}`, TTL: 120000ms
-
-> **v3**: generateWithAi Lock → SQS FIFO MessageGroupId로 대체. completeBook Lock → 제거.
-
-### SQS 메시지 스키마 (v3 목표)
-
-**메인 앱 → SQS 발행 페이로드**
+### SQS 메시지 스키마
 ```json
 {
   "bipId": "string",
@@ -272,50 +257,41 @@ Lock Key: `bip:lock:{bipId}`, TTL: 120000ms
 - MessageGroupId: `{bipId}`
 - MessageDeduplicationId: `{bipId}-{pageIndex}`
 
-### Redis 결과 스키마 (v3 목표, Lambda가 저장)
+### Redis 결과 스키마 (Lambda 저장)
 ```
-Key: bip:result:{bipId}        TTL: 600s
-Value: {
-  "pageIndex": 0,
-  "context": "page content",
-  "imageUrl": "https://...",
-  "questions": ["q1", "q2", "q3"]
-}
+key: bip:result:{bipId}        TTL: 600s
+value: { "pageIndex": 0, "context": "...", "imageUrl": "...", "questions": [...] }
 
-Key: idempotency:{messageId}   TTL: 86400s
-Value: IN_FLIGHT | {llmResult} | DONE
+key: idempotency:{messageId}   TTL: 86400s
+value: IN_FLIGHT | {llmResult} | DONE
 ```
 
-### 폴링 엔드포인트 응답 (v3 목표)
+### 폴링 응답
 ```
 GET /api/v1/book/progress/{id}/status
-
 없음 → { status: "PENDING" }
-있음 → DB 페이지 저장 → Redis DEL → IN_PROGRESS 전환
-     → { status: "COMPLETED", page: { context, imageUrl, questions } }
+있음 → DB 페이지 저장 → Redis DEL → { status: "COMPLETED", page: { ... } }
 ```
-
-> 응답 `"COMPLETED"` = 페이지 생성 완료(BIP.Status.IN_PROGRESS)이며, 책 완성(BIP.Status.COMPLETED)과 무관.
 
 ### Exceptions
 | Method | Code | 설명 |
 |---|---|---|
 | `notFound(resource)` | E404 | 리소스 없음 |
 | `forbiddenResource()` | E403 | 권한 없음 |
-| `bookPageAlreadyGenerating(bipId)` | E409 | 이미 생성 중 (Lock 충돌) |
-| `bookPageAlreadySaving(bipId)` | E409 | 이미 저장 중 (Lock 충돌) |
-| `bookNotCompleted(bipId)` | E409 | COMPLETED 상태에서 페이지 추가 시도 |
+| `bookNotCompleted(bipId)` | E409 | IN_PROGRESS 아닌 상태에서 completeBook |
 | `alreadyCompleted(bipId)` | E409 | 이미 완성됨 |
+| `alreadyPending(bipId)` | E409 | 이미 Lambda 처리 중 (guard 있음) |
 
 ---
 
 ## 4. Character Context
 
-**Responsibility:** 캐릭터 생성 및 조회
+**Responsibility:** 캐릭터 생성(비동기) 및 조회. 생성 진행 상태는 Redis로 관리.
 
-### Entity
+### Entities
+
 ```
-BookCharacter (record)
+BookCharacter (record)                ← 완성된 캐릭터 (RDS 영구 저장)
   - Long id
   - Long userId
   - String name
@@ -323,6 +299,38 @@ BookCharacter (record)
   - String personality
   - String description
   - String imageUrl
+
+CharacterInProgress (record)          ← 생성 진행 중 (Redis)
+  - String id               ← compact UUID (cipId)
+  - Long userId
+  - String name
+  - String appearanceKeywords
+  - String personality
+  - String description
+  - Status status           ← IN_PROGRESS | COMPLETED
+```
+
+### CharacterInProgress Status Machine
+
+```
+requestCreate() → [IN_PROGRESS]
+                       │
+              Lambda 완료 → char:result:{cipId} 저장
+                       │
+         completeCharacter() 호출
+                       │
+                  [COMPLETED] → DB 저장 → BookCharacter 반환
+```
+
+### State Transition Methods
+```java
+// CharacterInProgress.java
+toCreateCommand(String imageUrl)
+  // 전제: status == IN_PROGRESS (위반 시 alreadyCompleted())
+  // 결과: BookCharacterCreateCommand 반환
+
+markAsCompleted()
+  // 결과: status → COMPLETED
 ```
 
 ### Commands / Requests
@@ -337,79 +345,95 @@ BookCharacterGenerateRequest
   - String name, appearanceKeywords, personality, description
   → toCommand(imageUrl): BookCharacterCreateCommand
 
-BookCharacterImageRequest
-  - String description, appearance
+CharacterQueueMessage
+  - String type ("CHARACTER")
+  - String cipId
+  - String name, appearanceKeywords, personality, description
 ```
 
-### Repository
+### Repository (BookCharacter)
 ```java
 BookCharacter retrieveById(Long characterId)
 List<BookCharacter> retrieveByUser(Actor user)
 BookCharacter createFrom(BookCharacterCreateCommand command)
 ```
 
-### Service: BookCharacterService
+### Repository (CharacterInProgress)
 ```java
-retrieveById(Long characterId)          // null이면 notFound()
-create(BookCharacterGenerateRequest)    // AI 이미지 생성 → S3 업로드 → DB 저장
-retrieveByUser(Actor currentUser)
+void save(CharacterInProgress cip)
+CharacterInProgress getById(String cipId)       // 없으면 notFound(E404)
+void markAsCompleted(String cipId)
 ```
 
-### Domain Rules
-- 캐릭터는 소유자(userId)에 귀속됨
-- `BookInProgress` 생성 시 캐릭터 존재 여부 검증 필요 (BookProgressService에서 수행)
-- 캐릭터 이미지는 S3 영구 저장소(`character/` 접두사)에 저장
+### Repository (CharacterResult - Redis)
+```java
+Optional<CharacterResult> find(String cipId)
+void delete(String cipId)
+```
 
-### Exceptions
+### Service: BookCharacterService (v3)
+```java
+// 캐릭터 생성 요청: CIP 저장 → SQS 발행 → cipId 반환 (202)
+String requestCreate(BookCharacterGenerateRequest request)
+
+// 생성 상태 폴링: char:result:{cipId} 존재 여부 확인
+CharacterPollResult pollStatus(Actor user, String cipId)
+  // → PENDING | READY
+
+// 캐릭터 완성: IN_PROGRESS 검증 → result 존재 검증 → DB 저장 → CIP COMPLETED
+BookCharacter completeCharacter(Actor user, String cipId)
+
+// 완성된 캐릭터 조회
+BookCharacter retrieveById(Long characterId)
+List<BookCharacter> retrieveByUser(Actor currentUser)
+```
+
+### Redis 키
+```
+char:progress:{cipId}    TTL: 1800s   (CharacterInProgress 상태)
+char:result:{cipId}      TTL: 600s    (Lambda 결과, imageUrl 포함)
+```
+
+### SQS 메시지
+```json
+{
+  "type": "CHARACTER",
+  "cipId": "uuid",
+  "name": "string",
+  "appearanceKeywords": "string",
+  "personality": "string",
+  "description": "string"
+}
+```
+- MessageGroupId: `character-{cipId}`
+- MessageDeduplicationId: `character-{cipId}`
+
+### Domain Rules
+- `completeCharacter`: CIP가 IN_PROGRESS이어야 함 (COMPLETED → 409)
+- `completeCharacter`: `char:result:{cipId}` 가 반드시 존재해야 함 (없으면 409)
+- 소유권 검증: `cip.userId == user.id` (위반 시 403)
+
+### Exceptions (CharacterInProgressException)
 | Method | Code | 설명 |
 |---|---|---|
-| `notFound(Long)` | E404 | 존재하지 않는 캐릭터 |
+| `notFound(cipId)` | E404 | CIP 없음 (만료 또는 미존재) |
+| `alreadyCompleted(cipId)` | E409 | 이미 완성됨 |
+| `resultNotReady(cipId)` | E409 | Lambda 결과 미도착 |
 | `forbidden()` | E403 | 권한 없음 |
 
 ---
 
-## 5. AI Context
+## 5. Image Context
 
-**Responsibility:** LLM 호출 추상화 (인터페이스만 존재, 구현은 외부)
+**Responsibility:** 이미지 업로드 추상화. v3에서 페이지/캐릭터 이미지 업로드는 Lambda가 S3에 직접 수행.
 
-> **v3**: 이 컨텍스트의 BookPageGenerator 구현체는 Python Lambda로 이전 예정.
-> Spring 앱에서는 SQS 발행만 수행하고 직접 호출하지 않음.
-> BookCharacterGenerator(캐릭터 이미지)는 계속 Spring 앱에서 직접 호출.
+> **v3 현황**: `ImageRepository` 인터페이스와 `ImageRepositoryAdapter`는 코드에 잔존하나 호출처 없음.
+> Phase 4에서 정리 예정.
 
-### Interfaces
+### Repository (현재 미사용)
 ```java
-// 페이지 콘텐츠 + 삽화 생성
-BookPageGenerator
-  BookPageGenerated generatePageFrom(BookToProgress bookToProgress)
-
-// 캐릭터 초상화 생성 (v3에서도 Spring 앱 직접 호출 유지)
-BookCharacterGenerator
-  String generateImageFrom(BookCharacterGenerateRequest request)
-```
-
-### Value Objects
-```
-BookPageGenerated (record)
-  - String generatedIllustrationUrl
-  - String context
-  - List<String> questions
-
-BookToProgress (record)
-  - BookInProgress bookInProgress
-  - String userInput
-```
-
----
-
-## 6. Image Context
-
-**Responsibility:** 이미지 업로드 및 영구 저장소 이전
-
-### Repository
-```java
-ImageUploadResult uploadTemporary(String url)         // → temp/ 접두사
-ImageUploadResult uploadCharacterImage(String url)    // → character/ 접두사
-Map<String, ImageUploadResult> copyAllToPermanentStorage(List<String> urls)  // → book/ 접두사
+ImageUploadResult uploadTemporary(String url)         // 호출처 없음
+ImageUploadResult uploadCharacterImage(String url)    // 호출처 없음
 ```
 
 ### Value Objects
@@ -419,26 +443,9 @@ ImageUploadResult (record)
   - String newUrl
 ```
 
-### Domain Rules
-- AI 생성 이미지는 임시 저장소(`temp/`)에 먼저 저장
-- Book 완성 시 모든 페이지 이미지를 영구 저장소(`book/`)로 복사 (비동기)
-- 캐릭터 이미지는 생성 시점에 영구 저장소(`character/`)에 저장
-
-### Events
-```java
-ImageUploadEvent             // Book 저장 후 비동기 S3 이전 트리거
-  → ImageUploadEventHandler  // @TransactionalEventListener AFTER_COMMIT
-                             // @Async("transaction-event")
-```
-
-### Exceptions
-| Method | Code | 설명 |
-|---|---|---|
-| `uploadFailed(message)` | E500 | 업로드 실패 |
-
 ---
 
-## 7. Storage Implementation
+## 6. Storage Implementation
 
 ### Redis Entities
 
@@ -446,15 +453,40 @@ ImageUploadEvent             // Book 저장 후 비동기 S3 이전 트리거
 ```
 Key: book:inprogress:{id}    TTL: 360000s (100h)
 Fields: id, memberId, backgroundInfo, character, storyLength, status
-
 Status: IN_PROGRESS | PENDING | COMPLETED
 ```
 
 **BookPageRedisEntity**
 ```
-Key: book:pages:{bookId}     TTL: 3600s (1h)
+Key: book:pages:{bookId}     TTL: 3600s
 Type: Redis List
 Fields: bookInProgressId, context, imageUrl, pageNumber
+```
+
+**CharacterInProgress**
+```
+Key: char:progress:{cipId}   TTL: 1800s
+Fields: id, userId, name, appearanceKeywords, personality, description, status
+Status: IN_PROGRESS | COMPLETED
+```
+
+**Pending Guard**
+```
+Key: bip:pending-guard:{bipId}   TTL: 600s
+Value: "1"
+```
+
+**Result Keys (Lambda 저장)**
+```
+Key: bip:result:{bipId}       TTL: 600s
+Key: char:result:{cipId}      TTL: 600s
+```
+
+**Idempotency (Lambda 관리)**
+```
+Key: idempotency:{messageId}          TTL: 86400s   (페이지)
+Key: idempotency:char:{messageId}     TTL: 86400s   (캐릭터)
+Value: IN_FLIGHT | DONE
 ```
 
 **Member Index**
@@ -466,35 +498,35 @@ Key: member:{memberId}:bip   → Set of BIP IDs
 ```java
 RedisLockManager
   <T> execute(String key, long expireMillis, Supplier<T> action)
-  // SET NX EX → 성공 시 action 실행 → Lua script로 atomic 해제
-  // 실패 시 RedisLockException
+  // SET NX EX → 성공 시 action 실행 → Lua script atomic 해제
 
-Lock Keys:
-  bip:lock:{bipId}    TTL: 120000ms (2min)
+Lock Key: bip:lock:{bipId}    TTL: 120000ms
 ```
+> completeBook의 Lock은 v3에서 제거됨. generateWithAi Lock은 SQS FIFO MessageGroupId로 중복 방지 보완.
 
 ---
 
-## Dependency Graph
+## Dependency Graph (v3)
 
 ```
 BookProgressService
   ├── BookCharacterRepository     (Character ctx)
   ├── BookInProgressRepository    (BookProgress ctx / Redis)
-  ├── BookPageGenerator           (AI ctx / v3: Lambda로 이전)
-  ├── ImageRepository             (Image ctx)
-  └── BookInProgressLockExecutor  (Redis / v3: 제거 예정)
+  ├── BookPageQueuePublisher      (SQS → Lambda)
+  ├── BookPageResultRepository    (Redis / Lambda 결과 수신)
+  ├── BookInProgressPendingGuard  (Redis / stale PENDING 방지)
+  └── BookInProgressLockExecutor  (Redis)
 
 BookCompleteExecutor
   ├── BookInProgressRepository
   ├── BookCharacterRepository
-  ├── BookRepository              (Book ctx)
-  └── BookInProgressLockExecutor  (Redis / v3: 제거 예정)
+  └── BookRepository              (Book ctx)
 
 BookCharacterService
   ├── BookCharacterRepository
-  ├── BookCharacterGenerator      (AI ctx / v3에서도 직접 호출 유지)
-  └── ImageRepository
+  ├── CharacterInProgressRepository  (Redis)
+  ├── CharacterQueuePublisher        (SQS → Lambda)
+  └── CharacterResultRepository      (Redis / Lambda 결과 수신)
 ```
 
 ---
@@ -508,14 +540,16 @@ BookCharacterService
 | GET | `/api/v1/book/board/{bookId}` | BookController | 책 상세 |
 | GET | `/api/v1/book/board/all` | BookController | 책 목록 (페이징·정렬) |
 | GET | `/api/v1/book/my` | BookController | 내 책 목록 |
-| POST | `/api/v1/book/progress/init` | BookProgressController | 책 작성 시작 |
-| POST | `/api/v1/book/progress/{id}` | BookProgressController | 페이지 생성 (AI) |
-| POST | `/api/v1/book/progress/{id}/complete` | BookProgressController | 책 완성 |
+| POST | `/api/v1/book/progress/init` | BookProgressController | 책 작성 시작 → 202 + bipId |
+| POST | `/api/v1/book/progress/{id}` | BookProgressController | 페이지 생성 (SQS) → 202 + bipId |
+| GET | `/api/v1/book/progress/{id}/status` | BookProgressController | 페이지 생성 완료 폴링 |
+| POST | `/api/v1/book/progress/{id}/complete` | BookProgressController | 책 완성 (IN_PROGRESS 필요) |
 | GET | `/api/v1/book/progress/{id}` | BookProgressController | 진행 상황 조회 |
-| GET | `/api/v1/book/progress/{id}/status` | BookProgressController | **[v3 신규]** 생성 완료 여부 폴링 |
 | GET | `/api/v1/character/my` | CharacterController | 내 캐릭터 목록 |
 | GET | `/api/v1/character/board/{id}` | CharacterController | 캐릭터 상세 |
-| POST | `/api/v1/character/create` | CharacterController | 캐릭터 생성 |
+| POST | `/api/v1/character/create` | CharacterController | 캐릭터 생성 요청 → 202 + cipId |
+| GET | `/api/v1/character/{cipId}/status` | CharacterController | 캐릭터 생성 완료 폴링 → PENDING\|READY |
+| POST | `/api/v1/character/{cipId}/complete` | CharacterController | 캐릭터 완성 → DB 저장 → 200 |
 
 ---
 
