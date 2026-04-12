@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.redis.DataRedisTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.Arrays;
@@ -18,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 @ActiveProfiles("test")
 @DataRedisTest
@@ -64,20 +66,23 @@ class BookInProgressRepositoryAdapterTest {
         );
     }
 
+    @Autowired
+    private RedisTemplate<String, String> stringRedisTemplate;
+
+    @BeforeEach
+    void flushRedis() {
+        stringRedisTemplate.execute((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+            connection.serverCommands().flushDb();
+            return null;
+        });
+    }
+
     @AfterEach
     void cleanup() {
-        // 테스트 데이터 정리
-        String[] bookIds = {
-                "test-book-001", "test-book-002", "test-book-003",
-                "book-with-pages", "book-multiple-pages", "book-update-test"
-        };
-
-        for (String bookId : bookIds) {
-            if (redisRepository.has(bookId)) {
-                redisRepository.delete(bookId);
-                pageRedisRepository.deleteAll(bookId);
-            }
-        }
+        stringRedisTemplate.execute((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+            connection.serverCommands().flushDb();
+            return null;
+        });
     }
 
     // ==================== save() 메서드 테스트 ====================
@@ -387,7 +392,6 @@ class BookInProgressRepositoryAdapterTest {
                 testCharacter,
                 Collections.emptyList(),
                 BookInProgress.Status.IN_PROGRESS
-
         );
 
         BookCharacter member2Character = new BookCharacter(
@@ -568,5 +572,87 @@ class BookInProgressRepositoryAdapterTest {
         }
 
         System.out.println("통합: Multiple members integration test passed");
+    }
+
+    // ==================== PENDING 상태 테스트 ====================
+
+    @Test
+    @DisplayName("Status.fromDomain: PENDING 도메인 상태를 Redis PENDING으로 변환한다")
+    void testFromDomainPending() {
+        BookInProgressRedisEntity.Status result = BookInProgressRedisEntity.Status.fromDomain(BookInProgress.Status.PENDING);
+        assertThat(result).isEqualTo(BookInProgressRedisEntity.Status.PENDING);
+    }
+
+    @Test
+    @DisplayName("Status.toDomain: Redis PENDING을 도메인 PENDING으로 변환한다")
+    void testToDomainPending() {
+        BookInProgress.Status result = BookInProgressRedisEntity.Status.toDomain(BookInProgressRedisEntity.Status.PENDING);
+        assertThat(result).isEqualTo(BookInProgress.Status.PENDING);
+    }
+
+    @Test
+    @DisplayName("save/retrieveById: PENDING 상태를 저장하고 조회하면 PENDING이 유지된다")
+    void testSaveAndRetrievePendingStatus() {
+        // Given
+        BookInProgress pending = new BookInProgress(
+                "test-book-003",
+                1L,
+                "PENDING 테스트",
+                testCharacter,
+                Collections.emptyList(),
+                BookInProgress.Status.PENDING
+        );
+
+        // When
+        adapter.save(pending);
+        BookInProgress retrieved = adapter.retrieveById("test-book-003");
+
+        // Then
+        assertThat(retrieved).isNotNull();
+        assertThat(retrieved.status()).isEqualTo(BookInProgress.Status.PENDING);
+    }
+
+    // ==================== markAsCompleted() 메서드 테스트 ====================
+
+    @Test
+    @DisplayName("markAsCompleted: IN_PROGRESS 상태를 COMPLETED로 변경한다")
+    void testMarkAsCompleted() {
+        // Given
+        adapter.save(testBookInProgress);
+
+        // When
+        adapter.markAsCompleted("test-book-001");
+
+        // Then
+        BookInProgress retrieved = adapter.retrieveById("test-book-001");
+        assertThat(retrieved).isNotNull();
+        assertThat(retrieved.status()).isEqualTo(BookInProgress.Status.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("markAsCompleted: 존재하지 않는 ID는 예외 없이 무시된다")
+    void testMarkAsCompletedNonExistent() {
+        // When & Then - should not throw
+        assertThatCode(() -> adapter.markAsCompleted("non-existent-id"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("markAsCompleted: 완료 후 기존 메타데이터가 유지된다")
+    void testMarkAsCompletedPreservesMetadata() {
+        // Given
+        adapter.save(testBookInProgress);
+
+        // When
+        adapter.markAsCompleted("test-book-001");
+
+        // Then
+        BookInProgress retrieved = adapter.retrieveById("test-book-001");
+        assertThat(retrieved).isNotNull();
+        assertThat(retrieved.status()).isEqualTo(BookInProgress.Status.COMPLETED);
+        assertThat(retrieved.id()).isEqualTo("test-book-001");
+        assertThat(retrieved.ownerId()).isEqualTo(1L);
+        assertThat(retrieved.backgroundInfo()).isEqualTo("숲속 친구들의 모험 이야기");
+        assertThat(retrieved.character().name()).isEqualTo("토끼 토리");
     }
 }

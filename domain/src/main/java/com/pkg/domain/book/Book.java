@@ -19,7 +19,7 @@ public record Book(
 ) {
 
     public static Book completeFromCommand(BookInProgress bookInProgress, CompleteBookCommand command) {
-        if(bookInProgress.status() != BookInProgress.Status.PENDING) {
+        if(bookInProgress.status() != BookInProgress.Status.IN_PROGRESS) {
             throw BookProgressException.bookNotCompleted(bookInProgress.id());
         }
         if(!bookInProgress.ownerId().equals(command.actor().id())

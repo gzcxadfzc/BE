@@ -2,7 +2,7 @@
 
 > **목적**: LLM 호출 파이프라인의 안정성 확보, 사용자 경험 개선, Scale-out 대응, 멀티 프로바이더 LLM Gateway 전환
 > **기반 문서**: `lock-network-io-performance-analysis.md`, `vt.md`, `performance.md`
-> **작성일**: 2026-03-27 | **최종 수정**: 2026-03-31
+> **작성일**: 2026-03-27 | **최종 수정**: 2026-04-08
 
 ---
 
@@ -72,10 +72,12 @@ JDBC + no-VT가 현재 환경에서 최적. R2DBC 전환 없이 VT 도입 시 `R
 ```
 v2: 불변식 = Redis Lock이 보호  → Lock 실패 = 불변식 위반 가능
 
-v3: 불변식 = PENDING 상태가 표현 → 도메인 상태 자체가 중복 처리 차단
-    SQS FIFO                     → 인프라 보조 (직렬 큐잉)
-    Redis                        → 캐시/신호 역할로 격리
+v3: 불변식 = Redis Lock 유지 (generateWithAi) → 동시 요청 시 userInput이 달라질 수 있어 race condition은 허용 불가
+    SQS FIFO MessageDeduplicationId           → 처리 중복 하드 보장 (2차 방어)
+    PENDING 상태                               → 순차 중복 요청 즉시 차단 (409)
+    Redis                                      → 캐시/신호 역할로 격리
 ```
+> Lock 제거 검토 내용 및 결정 이유: `docs/lock.md` 참고
 
 ---
 
@@ -241,9 +243,10 @@ public void onBookCompleted(BookCompletedEvent event) {
 }
 ```
 
-#### 1-3. 이미지 업로드 이벤트 재시도 (P5)
+#### 1-3. 이미지 업로드 이벤트 재시도 (P5) → Phase 3으로 이관
 
-실패 시 Redis에 재시도 대상 URL 저장 → 스케줄러(1분 간격) 재처리 → 최대 3회 후 알림 로그.
+> Lambda가 이미지 업로드를 직접 담당(S3 deterministic key)하므로 `temp/ → book/` 복사 단계 자체가 제거됨.
+> `ImageUploadEventHandler` 삭제는 Phase 3에서 수행. P5 재시도 스케줄러는 불필요.
 
 #### 1-4. `handle()` 불필요한 트랜잭션 제거 (P9, P10) ✅ 완료
 
@@ -263,20 +266,14 @@ public class ImageUploadEventHandler {
 }
 ```
 
-**`transaction-event` 스레드 풀 재조정:**
+**`transaction-event` 스레드 풀:**
 
-DB 커넥션 불필요해지므로 S3 I/O 기준으로 재조정.
+Phase 3에서 `ImageUploadEventHandler` 자체가 제거되므로 이 스레드 풀 설정도 함께 삭제.
 
-```java
-executor.setCorePoolSize(4);
-executor.setMaxPoolSize(20);   // 40 → 20 (S3 I/O 기준)
-executor.setQueueCapacity(200);
-```
-
-#### 1-5. HikariCP 명시적 설정 (P10) ✅ load-test 완료
+#### 1-5. HikariCP 명시적 설정 (P10) ✅ 완료
 
 ```yaml
-# storage.yml (load-test 프로파일) ← 완료
+# storage.yml (load-test, prod 프로파일) ← 완료
 storage:
   datasource:
     maximum-pool-size: 50
@@ -284,34 +281,28 @@ storage:
     connection-timeout: 30000
 ```
 
-> prod 프로파일도 동일하게 적용 필요 (미완료).
-
 ---
 
-### Phase 2: LLM Gateway 구현 (P8)
+### Phase 2: LLM Gateway 구현 (P8) ✅ 불필요 (결정 변경)
 
-> Phase 1과 병행 가능. Lambda 구현 선행 조건.
-
-- 공통 모델: `LLMRequest`, `LLMResponse`, `LLMMessage`, `LLMOptions`
-- `LLMProvider` 인터페이스 + `OpenAiLLMProvider` 구현 (기존 `OpenAiApi` 래핑)
-- `LLMGateway` 구현 (`chatWithFallback` 포함)
-- 기존 도메인 어댑터 전환 (`OpenAiContextQuestionGenerator` 등 → `LLMGateway` 경유)
+> Lambda를 Python으로 결정함에 따라 Java LLM Gateway 불필요.
+> Python Lambda에서 OpenAI API 직접 호출. Mock 단계에서는 sleep + 고정 응답으로 대체.
 
 ---
 
 ### Phase 3: 비동기 LLM 처리 (P1, P2, P6)
 
-> Phase 2 완료 후 진행. 이것만으로 기능 완성 (클라이언트 폴링).
-> **범위**: `generateWithAi`만 비동기 전환. `initBook`은 첫 페이지 즉각 응답 필요 → 동기 유지 (Q1 확정).
+> 인프라 완료. 애플리케이션 코드 작업 진행 중.
+> **범위**: `initBook` + `generateWithAi` 모두 비동기 전환 (Q1 결정 변경 - 둘 다 LLM 호출 존재).
 
-#### 3-1. SQS FIFO 큐 설정
+#### 3-1. SQS FIFO 큐 설정 ✅ 완료
 
 ```
-Queue: littlewriter-bip-generation.fifo
+Queue: littlewriter-bip-generation.fifo  ✅ 생성 완료
 MessageGroupId: {bipId}
 MessageDeduplicationId: {bipId}-{pageIndex}
 Visibility Timeout: 300초
-DLQ: littlewriter-bip-dlq.fifo (3회 실패 시 이동)
+DLQ: littlewriter-bip-dlq.fifo (3회 실패 시 이동)  ✅ 생성 완료
 ```
 
 #### 3-2. API 변경
@@ -390,12 +381,25 @@ GET /api/v1/book/progress/{id}/status
 `bip:result` DEL 이전에 DB 저장이 완료되지 않으면 중복 저장 위험.
 → DB 저장 성공 후 DEL. 실패 시 Redis 키 유지 → 다음 폴링에서 재시도.
 
-#### 3-5. Redis Lock 제거
+#### 3-5. Redis Lock 처리
 
-| 현재 Lock | v3 대체 | 제거 |
+| 현재 Lock | v3 결정 | 이유 |
 |-----------|---------|------|
-| generateWithAi Lock | SQS FIFO MessageGroupId | 제거 |
-| completeBook Lock | PENDING 상태 체크 | 제거 |
+| generateWithAi Lock | **유지** | race condition 시 userInput이 달라질 수 있음. SQS dedup은 처리 중복만 방지하고 호출자에게 알리지 않음 |
+| completeBook Lock | 별도 검토 | 동시 완성 요청 시 Book 중복 생성 위험 |
+
+> 상세 분석: `docs/lock.md` 참고
+
+#### 3-6. ImageUploadEventHandler 제거 (P5)
+
+Lambda가 이미지 업로드를 직접 담당하므로 `ImageUploadEventHandler`, `ImageUploadEvent`, `transaction-event` 스레드 풀 설정 전부 삭제.
+
+```
+제거 대상:
+- ImageUploadEventHandler.java
+- ImageUploadEvent.java (발행 지점 포함)
+- AsyncConfig의 transaction-event 스레드 풀 Bean
+```
 
 ---
 
@@ -424,16 +428,18 @@ public class SseBookProgressNotifier implements BookProgressNotifier {
 | 컴포넌트 | Phase | 변경 내용 |
 |----------|-------|---------|
 | `ImageUploadEventHandler` (신규) ✅ | 1 | S3 핸들러 분리, `@Transactional` 제거 |
-| `RedisLockManager` | 1 | `releaseLock` Lua script 적용 |
+| `RedisLockManager` ✅ | 1 | `releaseLock` Lua script 적용 |
 | `BookRepositoryAdapter` ✅ | 1 | `handle()` 제거 |
-| `HikariCP` | 1 (load-test 완료, prod 미완료) | pool 50 명시적 설정 |
-| `transaction-event` 스레드 풀 | 1 | max 40 → 20 |
-| `LLMProvider` / `LLMGateway` (신규) | 2 | 프로바이더 추상화 |
-| 기존 도메인 어댑터 | 2 | `LLMGateway` 경유 전환 |
+| `HikariCP` ✅ | 1 | pool 50 명시적 설정 (load-test, prod) |
+| ~~`LLMProvider` / `LLMGateway`~~ | ~~2~~ | Python Lambda 전환으로 불필요 |
+| `BookInProgressRedisEntity.Status` | 3 | PENDING 추가 |
 | `BookProgressController` | 3 | 202 반환, 폴링 엔드포인트 추가 |
-| `BookProgressService` | 3 | SQS 발행, PENDING 처리 |
-| `BookProgressNotifier` (신규) | 3 | NoOp 구현 |
-| Java Lambda (신규) | 3 | SQS consumer, LLMGateway, 멱등성, Redis 저장 |
+| `BookProgressService` | 3 | SQS 발행, PENDING 처리, Lock 유지 (generateWithAi) |
+| SQS 클라이언트 Bean | 3 | application.yml + SQS config 추가 |
+| Python Lambda ✅ | 3 | lambda/handler.py (멱등성, Mock LLM, Redis 저장) |
+| `ImageUploadEventHandler` | 3 | Lambda 이미지 위임으로 삭제 |
+| `ImageUploadEvent` | 3 | 발행 지점 포함 삭제 |
+| `transaction-event` 스레드 풀 | 3 | 핸들러 삭제와 함께 제거 |
 | `SseBookProgressNotifier` (신규) | 4 | Redis Pub/Sub → SSE push |
 | VT 활성화 | 4 | SSE 연결 급증 시점에 도입 |
 
@@ -443,17 +449,23 @@ public class SseBookProgressNotifier implements BookProgressNotifier {
 
 ```
 Phase 1 (즉시, 독립 적용)
-  ├─ Lock 해제 atomic (P3)
-  ├─ completeBook 정합성 (P4)
-  ├─ 이미지 업로드 재시도 (P5)
-  ├─ handle() @Transactional 분리 (P9, P10)
-  └─ HikariCP prod 프로파일 pool 50 적용 ← load-test는 완료
+  ├─ ✅ handle() @Transactional 분리 (P9, P10)
+  ├─ ✅ HikariCP pool 50 (load-test, prod)
+  ├─ ✅ Lock 해제 atomic (P3)
+  └─ completeBook 정합성 (P4)
+  (P5 이미지 재시도 → Phase 3에서 핸들러 삭제로 대체)
 
-Phase 2 (Phase 1과 병행)
-  └─ LLM Gateway 구현 (P8)
+Phase 2 → 불필요 (Python Lambda 전환)
 
-Phase 3 (Phase 2 완료 후, 핵심)
-  └─ SQS → Lambda → Redis → 폴링 (P1, P2, P6)
+Phase 3 (진행 중)
+  ├─ ✅ SQS FIFO + DLQ 생성
+  ├─ ✅ Python Lambda 핸들러 (lambda/handler.py)
+  ├─ ✅ Lambda 인프라 (IAM, S3 아티팩트, Event Source Mapping)
+  ├─ BookInProgressRedisEntity.Status PENDING 추가
+  ├─ BookProgressService SQS 발행 + PENDING 전환
+  ├─ BookProgressController 202 반환 + 폴링 엔드포인트
+  ├─ SQS 클라이언트 Bean 구성
+  └─ ImageUploadEventHandler / ImageUploadEvent / transaction-event 풀 삭제 (P5)
 
 Phase 4 [선택, 언제든 독립 추가]
   └─ SSE + VT 도입 (P7)
@@ -465,11 +477,11 @@ Phase 4 [선택, 언제든 독립 추가]
 
 | # | 질문 | 현재 결정 |
 |---|------|---------|
-| Q1 | initBook 비동기 처리 여부 | 동기 유지 (첫 페이지 즉각 응답) |
+| Q1 | initBook 비동기 처리 여부 | **비동기 전환** (LLM 호출 존재 확인, generateWithAi와 동일 처리) |
 | Q2 | Lambda DLQ 도착 시 처리 | LLM Gateway 폴백으로 빈도 감소. 도달 시 운영자 알림 + 수동 재처리 |
 | Q3 | idempotency key 저장소 | Redis (현재 인프라 재사용) |
 | Q4 | 폴링 vs SSE | Phase 3: 폴링, Phase 4: SSE [선택] |
 | Q5 | completeBook 동기 유지 | 유지 (60ms, 부하 테스트 확인됨) |
-| Q6 | LLM 폴백 우선순위 | OpenAI → Claude (비용 기준) |
+| Q6 | LLM 폴백 우선순위 | Python Lambda에서 직접 처리. Mock 단계에서는 불필요 |
 | Q7 | VT 도입 시점 | Phase 4 SSE 도입 시 함께 적용 |
 | Q8 | Redis 내구성 | Lambda 쓰기 후 빠른 소비로 위험 최소화. TTL 10분 필수 |

@@ -99,6 +99,21 @@ public class BookInProgressRepositoryAdapter implements BookInProgressRepository
         return bookInProgress;
     }
 
+    public void markAsCompleted(String bookInProgressId) {
+        BookInProgressRedisEntity existing = bookInProgressRepository.get(bookInProgressId);
+        if (existing == null) {
+            return;
+        }
+        bookInProgressRepository.put(new BookInProgressRedisEntity(
+                existing.id(),
+                existing.memberId(),
+                existing.backgroundInfo(),
+                existing.character(),
+                existing.storyLength(),
+                BookInProgressRedisEntity.Status.COMPLETED
+        ));
+    }
+
     @Override
     public BookInProgress addPageTo(String id, BookPage bookPage) {
         if(!bookInProgressRepository.has(id)) {

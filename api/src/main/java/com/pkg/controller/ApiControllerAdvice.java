@@ -5,7 +5,6 @@ import com.pkg.authentication.core.AuthenticationExceptionType;
 import com.pkg.controller.common.ApiError;
 import com.pkg.domain.exception.DomainException;
 import com.pkg.domain.exception.DomainExceptionCode;
-import com.pkg.openai.api.exception.OpenAiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -42,13 +41,6 @@ public class ApiControllerAdvice {
         log.error("Authentication Exception: {}", e.getMessage());
         return ResponseEntity.status(AuthTypeMapper.toStatusCode(e))
                 .body(new ApiError(e.getType().name(), e.getMessage()));
-    }
-
-    @ExceptionHandler(OpenAiException.class)
-    public ResponseEntity<ApiError> handleDomainException(OpenAiException e) {
-        log.error("Open AI Exception: {}", e.getMessage());
-        return ResponseEntity.status(500)
-                .body(new ApiError("E500", e.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

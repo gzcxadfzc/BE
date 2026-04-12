@@ -37,21 +37,24 @@ public record BookInProgressRedisEntity(
     public enum Status {
 
         IN_PROGRESS,
+        PENDING,
         COMPLETED,
         ;
 
         public static Status fromDomain(BookInProgress.Status status) {
-            if(status.equals(BookInProgress.Status.COMPLETED)) {
-                return COMPLETED;
-            }
-            return IN_PROGRESS;
+            return switch (status) {
+                case COMPLETED -> COMPLETED;
+                case PENDING   -> PENDING;
+                default        -> IN_PROGRESS;
+            };
         }
 
         public static BookInProgress.Status toDomain(Status status) {
-            if(status == COMPLETED) {
-                return BookInProgress.Status.COMPLETED;
-            }
-            return BookInProgress.Status.IN_PROGRESS;
+            return switch (status) {
+                case COMPLETED -> BookInProgress.Status.COMPLETED;
+                case PENDING   -> BookInProgress.Status.PENDING;
+                default        -> BookInProgress.Status.IN_PROGRESS;
+            };
         }
     }
 }

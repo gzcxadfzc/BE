@@ -1,0 +1,56 @@
+name: Lambda Deploy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'ai/lambda/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  LAMBDA_FUNCTION: littlewriter-bip-generator
+  S3_BUCKET: littlewriter-lambda-artifacts-032736241918-ap-northeast-2
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::032736241918:role/terraform-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Package Lambda
+        run: zip -j lambda.zip ai/lambda/handler.py
+
+      - name: Upload to S3
+        run: aws s3 cp lambda.zip s3://${{ env.S3_BUCKET }}/bip-generator.zip
+
+      - name: Update Lambda function code
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ env.LAMBDA_FUNCTION }} \
+            --s3-bucket ${{ env.S3_BUCKET }} \
+            --s3-key bip-generator.zip \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for update to complete
+        run: |
+          aws lambda wait function-updated \
+            --function-name ${{ env.LAMBDA_FUNCTION }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Verify deployment
+        run: |
+          aws lambda get-function \
+            --function-name ${{ env.LAMBDA_FUNCTION }} \
+            --query 'Configuration.{State:State,LastUpdateStatus:LastUpdateStatus,LastModified:LastModified}' \
+            --output table

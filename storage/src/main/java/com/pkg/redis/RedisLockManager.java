@@ -4,14 +4,30 @@ import com.pkg.domain.uitl.UuidGen;
 import org.springframework.data.redis.connection.RedisStringCommands;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 @Component
 public class RedisLockManager
 {
+    private static final DefaultRedisScript<Long> RELEASE_LOCK_SCRIPT;
+
+    static {
+        RELEASE_LOCK_SCRIPT = new DefaultRedisScript<>();
+        RELEASE_LOCK_SCRIPT.setScriptText(
+            "if redis.call('GET', KEYS[1]) == ARGV[1] then " +
+            "    return redis.call('DEL', KEYS[1]) " +
+            "else " +
+            "    return 0 " +
+            "end"
+        );
+        RELEASE_LOCK_SCRIPT.setResultType(Long.class);
+    }
+
     private final RedisTemplate<String, String> redisTemplate;
 
     public RedisLockManager(RedisTemplate<String, String> redisTemplate) {
@@ -42,16 +58,6 @@ public class RedisLockManager
     }
 
     private void releaseLock(String key, String lockId) {
-        redisTemplate.execute((RedisCallback<Void>) connection -> {
-            byte[] k = redisTemplate.getStringSerializer().serialize(key);
-            byte[] v = connection.get(k);
-            if (v != null) {
-                String currentId = redisTemplate.getStringSerializer().deserialize(v);
-                if (lockId.equals(currentId)) {
-                    connection.del(k);
-                }
-            }
-            return null;
-        });
+        redisTemplate.execute(RELEASE_LOCK_SCRIPT, List.of(key), lockId);
     }
 }

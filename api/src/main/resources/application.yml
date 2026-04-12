@@ -4,7 +4,6 @@ spring:
     import:
       - auth.yml
       - storage.yml
-      - ai.yml
 
 server:
   tomcat:

@@ -7,9 +7,7 @@ import com.pkg.domain.character.BookCharacterRepository;
 import com.pkg.domain.common.PageInfo;
 import com.pkg.domain.common.PageResult;
 import com.pkg.domain.member.Actor;
-import com.pkg.s3.ImageUploadEvent;
-import com.pkg.s3.PreAssignedUrl;
-import com.pkg.s3.S3KeyGen;
+import com.pkg.redis.BookCompleteEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,11 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 
 @Component
-@Transactional(transactionManager = "storageTransactionManager")
+@Transactional
 public class BookRepositoryAdapter implements BookRepository {
 
     private final BookJpaRepository bookJpaRepository;
@@ -44,15 +41,8 @@ public class BookRepositoryAdapter implements BookRepository {
     @Transactional
     @Override
     public Book saveFrom(BookInProgress bookInProgress, Function<BookInProgress, Book> converter) {
-        Map<String, PreAssignedUrl> urls = PreAssignedUrl.mapOfBookPrefix(
-                bookInProgress.previousPages().stream().map(BookPage::imageUrl).toList());
-        BookInProgress updated = bookInProgress.changeBookPage(page -> {
-            String preAssigned = S3KeyGen.getBucketHost() + urls.get(page.imageUrl()).destinationKey();
-            return page.changeImageUrl(preAssigned);
-        });
-        ImageUploadEvent event = new ImageUploadEvent(urls.values().stream().toList());
-        eventPublisher.publishEvent(event);
-        Book book = converter.apply(updated);
+        eventPublisher.publishEvent(new BookCompleteEvent(bookInProgress.id()));
+        Book book = converter.apply(bookInProgress);
         BookJpaEntity bookEntity = bookJpaRepository.save(BookJpaEntity.fromBook(book));
         List<BookPageJpaEntity> pageEntities = pageJpaRepository.saveAll(
                 book.bookPages().stream()

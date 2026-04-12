@@ -4,9 +4,11 @@ import com.pkg.controller.book.BookResponse;
 import com.pkg.controller.common.ApiResponse;
 import com.pkg.domain.ai.CreateOnePageCommand;
 import com.pkg.domain.book.Book;
+import com.pkg.domain.bookprogress.BookPagePollResult;
 import com.pkg.domain.bookprogress.*;
 import com.pkg.domain.member.Actor;
 import com.pkg.support.Authenticated;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,9 +23,8 @@ public class BookProgressController {
         this.bookCreator = bookCreator;
     }
 
-    @PostMapping
-    @RequestMapping("/init")
-    public ApiResponse<BookGenerationResponse> initBook(
+    @PostMapping("/init")
+    public ResponseEntity<ApiResponse<BookPageAcceptedResponse>> initBook(
             @Authenticated Actor currentUser,
             @RequestBody BookInitRequest request) {
         BookInitCommand command = new BookInitCommand(
@@ -32,12 +33,11 @@ public class BookProgressController {
                 currentUser,
                 request.userInput()
         );
-        AiGenerateResult result = bookProgressService.initBook(command);
-        return ApiResponse.success(BookGenerationResponse.from(result));
+        BookPageAccepted accepted = bookProgressService.initBook(command);
+        return ResponseEntity.accepted().body(ApiResponse.success(BookPageAcceptedResponse.from(accepted)));
     }
 
-    @PostMapping
-    @RequestMapping("/{id}/complete")
+    @PostMapping("/{id}/complete")
     public ApiResponse<BookResponse> completeBook(
             @Authenticated Actor currentUser,
             @PathVariable String id,
@@ -53,9 +53,9 @@ public class BookProgressController {
     }
 
     @PostMapping("/{id}")
-    public ApiResponse<BookGenerationResponse> generatePage(
+    public ResponseEntity<ApiResponse<BookPageAcceptedResponse>> generatePage(
             @Authenticated Actor currentUser,
-            @RequestBody BookInitRequest request,
+            @RequestBody BookProgressRequest request,
             @PathVariable String id
     ) {
         CreateOnePageCommand command = new CreateOnePageCommand(
@@ -63,8 +63,8 @@ public class BookProgressController {
                 request.userInput(),
                 currentUser
         );
-        AiGenerateResult result = bookProgressService.generateWithAi(command);
-        return ApiResponse.success(BookGenerationResponse.from(result));
+        BookPageAccepted accepted = bookProgressService.generateWithAi(command);
+        return ResponseEntity.accepted().body(ApiResponse.success(BookPageAcceptedResponse.from(accepted)));
     }
 
     @GetMapping("/{id}")
@@ -74,5 +74,14 @@ public class BookProgressController {
     ) {
         BookInProgress bookInProgress = bookProgressService.retrieveById(currentUser, id);
         return ApiResponse.success(BookInProgressResponse.from(bookInProgress));
+    }
+
+    @GetMapping("/{id}/status")
+    public ApiResponse<BookPageStatusResponse> pollPageStatus(
+            @Authenticated Actor currentUser,
+            @PathVariable String id
+    ) {
+        BookPagePollResult result = bookProgressService.pollPageResult(currentUser, id);
+        return ApiResponse.success(BookPageStatusResponse.from(result));
     }
 }

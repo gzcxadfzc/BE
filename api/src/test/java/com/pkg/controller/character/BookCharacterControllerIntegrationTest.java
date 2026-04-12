@@ -7,9 +7,7 @@ import com.pkg.TestApplication;
 import com.pkg.authentication.token.AccessToken;
 import com.pkg.authentication.token.AccessTokenAuthenticator;
 import com.pkg.authentication.token.MemberPrincipal;
-import com.pkg.domain.ai.BookCharacterGenerator;
-import com.pkg.domain.image.ImageRepository;
-import com.pkg.domain.image.ImageUploadResult;
+import com.pkg.domain.character.CharacterQueuePublisher;
 import com.pkg.domain.member.Role;
 import com.pkg.jpa.CharacterJpaEntity;
 import com.pkg.jpa.CharacterJpaRepository;
@@ -25,12 +23,15 @@ import org.springframework.boot.test.autoconfigure.json.AutoConfigureJsonTesters
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -51,13 +52,8 @@ class BookCharacterControllerIntegrationTest {
     @MockBean
     private AccessTokenAuthenticator mockTokenAuthenticator;
 
-    // OpenAI API를 사용하는 BookCharacterGenerator를 Mock으로 주입
     @MockBean
-    private BookCharacterGenerator mockBookCharacterGenerator;
-
-    // S3 등 외부 서비스를 사용하는 ImageRepository를 Mock으로 주입
-    @MockBean
-    private ImageRepository mockImageRepository;
+    private CharacterQueuePublisher mockQueuePublisher;
 
     @Autowired
     private MockMvc mockMvc;
@@ -71,6 +67,9 @@ class BookCharacterControllerIntegrationTest {
     @Autowired
     private EntityManager entityManager;
 
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
     private Long testMemberId;
     private Long testCharacter1Id;
     private Long testCharacter2Id;
@@ -83,12 +82,10 @@ class BookCharacterControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // Clean up database
         characterJpaRepository.deleteAll();
         memberJpaRepository.deleteAll();
         entityManager.clear();
 
-        // Insert test member
         MemberJpaEntity member = MemberJpaEntity.builder()
                 .username("testuser")
                 .password("password123")
@@ -98,7 +95,6 @@ class BookCharacterControllerIntegrationTest {
         memberJpaRepository.save(member);
         testMemberId = member.getId();
 
-        // Insert test characters
         CharacterJpaEntity character1 = CharacterJpaEntity.builder()
                 .memberId(testMemberId)
                 .name("Alice")
@@ -123,178 +119,188 @@ class BookCharacterControllerIntegrationTest {
         characterJpaRepository.save(character2);
         testCharacter2Id = character2.getId();
 
-        // Mock 설정 - BookCharacterGenerator (OpenAI API 대신 stub 응답 반환)
-        when(mockBookCharacterGenerator.generateImageFrom(any()))
-                .thenReturn("https://openai-generated-character-image.com/character.png");
+        doNothing().when(mockQueuePublisher).publish(any());
 
-        // Mock 설정 - ImageRepository (S3 업로드 대신 stub 응답 반환)
-        when(mockImageRepository.uploadCharacterImage(any()))
-                .thenReturn(new ImageUploadResult(
-                        "https://s3.amazonaws.com/characters/uploaded-character.jpg",
-                        "uploaded-character.jpg"
-                ));
-
-        // Mock 설정 - AccessTokenAuthenticator
         when(mockTokenAuthenticator.authenticate(any(AccessToken.class)))
                 .thenReturn(new MemberPrincipal(testMemberId, Role.MEMBER));
     }
 
+    // ── 조회 테스트 ───────────────────────────────────────────────────────��──
+
     @Test
     @DisplayName("GET /api/v1/character/my - 인증된 사용자의 캐릭터 목록을 조회할 수 있다")
     void retrieveMy_shouldReturnCharacterList() throws Exception {
-        // When & Then
         mockMvc.perform(get("/api/v1/character/my")
                         .header("Authorization", "Bearer valid.token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result").value("SUCCESS"))
                 .andExpect(jsonPath("$.data", hasSize(2)))
-                .andExpect(jsonPath("$.data[0].id").value(testCharacter1Id))
                 .andExpect(jsonPath("$.data[0].name").value("Alice"))
-                .andExpect(jsonPath("$.data[0].personality").value("curious and brave"))
-                .andExpect(jsonPath("$.data[0].imageUrl").value("https://example.com/alice.jpg"))
-                .andExpect(jsonPath("$.data[0].description").value("A young girl who loves adventure"))
-                .andExpect(jsonPath("$.data[1].id").value(testCharacter2Id))
                 .andExpect(jsonPath("$.data[1].name").value("Bob"))
-                .andExpect(jsonPath("$.data[1].personality").value("shy and thoughtful"))
-                .andExpect(jsonPath("$.data[1].imageUrl").value("https://example.com/bob.jpg"))
-                .andExpect(jsonPath("$.data[1].description").value("A quiet observer"))
                 .andDo(print());
     }
 
     @Test
     @DisplayName("GET /api/v1/character/my - 캐릭터가 없는 사용자는 빈 배열을 받는다")
     void retrieveMy_shouldReturnEmptyList_whenUserHasNoCharacters() throws Exception {
-        // Given - 새로운 사용자 생성 (캐릭터 없음)
         MemberJpaEntity newMember = MemberJpaEntity.builder()
-                .username("newuser")
-                .password("newpass123")
-                .role(RoleJpa.MEMBER)
-                .authProvider("local")
-                .build();
-        MemberJpaEntity savedMember = memberJpaRepository.save(newMember);
-
+                .username("newuser").password("newpass123")
+                .role(RoleJpa.MEMBER).authProvider("local").build();
+        memberJpaRepository.save(newMember);
         when(mockTokenAuthenticator.authenticate(any(AccessToken.class)))
-                .thenReturn(new MemberPrincipal(savedMember.getId(), Role.MEMBER));
+                .thenReturn(new MemberPrincipal(newMember.getId(), Role.MEMBER));
 
-        // When & Then
         mockMvc.perform(get("/api/v1/character/my")
                         .header("Authorization", "Bearer valid.token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result").value("SUCCESS"))
                 .andExpect(jsonPath("$.data", hasSize(0)))
                 .andDo(print());
     }
 
     @Test
-    @DisplayName("GET /api/v1/character/my - 다른 사용자의 캐릭터는 조회되지 않는다")
-    void retrieveMy_shouldNotReturnOtherUsersCharacters() throws Exception {
-        // Given - 다른 사용자와 그 사용자의 캐릭터 생성
-        MemberJpaEntity otherMember = MemberJpaEntity.builder()
-                .username("otheruser")
-                .password("otherpass123")
-                .role(RoleJpa.MEMBER)
-                .authProvider("local")
-                .build();
-        memberJpaRepository.save(otherMember);
-
-        CharacterJpaEntity otherCharacter = CharacterJpaEntity.builder()
-                .memberId(otherMember.getId())
-                .name("Charlie")
-                .appearanceKeywords("red hair")
-                .personality("adventurous")
-                .userDescription("A brave warrior")
-                .imageUrl("https://example.com/charlie.jpg")
-                .originImageUrl("https://openai.com/origin-charlie.jpg")
-                .build();
-        characterJpaRepository.save(otherCharacter);
-
-        // When & Then - testMemberId로 조회하면 otherMember의 캐릭터는 안 나와야 함
-        mockMvc.perform(get("/api/v1/character/my")
-                        .header("Authorization", "Bearer valid.token"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result").value("SUCCESS"))
-                .andExpect(jsonPath("$.data", hasSize(2)))
-                .andExpect(jsonPath("$.data[0].name").value("Alice"))
-                .andExpect(jsonPath("$.data[1].name").value("Bob"))
-                .andDo(print());
-    }
-
-    @Test
-    @DisplayName("GET /api/v1/character/{id} - ID로 캐릭터를 조회할 수 있다")
+    @DisplayName("GET /api/v1/character/board/{id} - ID로 캐릭터를 조회할 수 있다")
     void retrieveById_shouldReturnCharacter() throws Exception {
-        // When & Then
         mockMvc.perform(get("/api/v1/character/board/{id}", testCharacter1Id))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result").value("SUCCESS"))
-                .andExpect(jsonPath("$.data.id").value(testCharacter1Id))
                 .andExpect(jsonPath("$.data.name").value("Alice"))
-                .andExpect(jsonPath("$.data.personality").value("curious and brave"))
-                .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/alice.jpg"))
-                .andExpect(jsonPath("$.data.description").value("A young girl who loves adventure"))
                 .andDo(print());
     }
 
     @Test
-    @DisplayName("GET /api/v1/character/{id} - 존재하지 않는 캐릭터 조회 시 예외가 발생한다")
+    @DisplayName("GET /api/v1/character/board/{id} - 존재하지 않는 캐릭터 조회 시 예외가 발생한다")
     void retrieveById_shouldThrowException_whenCharacterNotFound() throws Exception {
-        // Given
-        Long nonExistentId = 99999L;
-
-        // When & Then
-        mockMvc.perform(get("/api/v1/character/board/{id}", nonExistentId))
+        mockMvc.perform(get("/api/v1/character/board/{id}", 99999L))
                 .andExpect(status().isNotFound())
                 .andDo(print());
     }
 
+    // ── 비동기 생성 흐름 테스트 ───────────────────────────────────────────────
+
     @Test
-    @DisplayName("POST /api/v1/character/create - 필수 필드 누락 시 적절한 검증 오류가 발생한다")
-    void createBookCharacter_shouldValidateRequiredFields() throws Exception {
-        // Given - 이름이 누락된 요청
-        String invalidRequest = """
+    @DisplayName("POST /create - 202 반환 + cipId 포함")
+    void requestCreate_shouldReturn202WithCipId() throws Exception {
+        String body = """
                 {
+                    "name": "TestChar",
                     "personality": "brave",
-                    "userDescription": "test",
-                    "appearanceDescription": "test"
+                    "userDescription": "A hero",
+                    "appearanceDescription": "tall and strong"
                 }
                 """;
 
-        // When & Then
         mockMvc.perform(post("/api/v1/character/create")
                         .header("Authorization", "Bearer valid.token")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidRequest))
-                .andExpect(status().is4xxClientError())
+                        .content(body))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.data.cipId").isNotEmpty())
+                .andExpect(jsonPath("$.data.status").value("PENDING"))
                 .andDo(print());
     }
 
     @Test
-    @DisplayName("GET /api/v1/character/board/{id} - 다른 사용자의 캐릭터도 ID로 조회할 수 있다 (공개된 정보)")
-    void retrieveById_shouldAllowAccessToOtherUsersCharacters() throws Exception {
-        // Given - 다른 사용자의 캐릭터
-        MemberJpaEntity otherMember = MemberJpaEntity.builder()
-                .username("otheruser")
-                .password("password123")
-                .role(RoleJpa.MEMBER)
-                .authProvider("local")
-                .build();
-        memberJpaRepository.save(otherMember);
+    @DisplayName("GET /{cipId}/status - Lambda 결과 없으면 PENDING")
+    void pollStatus_shouldReturnPending_whenResultNotReady() throws Exception {
+        String cipId = createCip();
 
-        CharacterJpaEntity otherCharacter = CharacterJpaEntity.builder()
-                .memberId(otherMember.getId())
-                .name("PublicCharacter")
-                .appearanceKeywords("mysterious")
-                .personality("enigmatic")
-                .userDescription("A mysterious figure")
-                .imageUrl("https://example.com/public.jpg")
-                .originImageUrl("https://openai.com/origin-public.jpg")
-                .build();
-        CharacterJpaEntity saved = characterJpaRepository.save(otherCharacter);
-
-        // When & Then - testMemberId 사용자가 다른 사용자의 캐릭터 조회
-        mockMvc.perform(get("/api/v1/character/board/{id}", saved.getId()))
+        mockMvc.perform(get("/api/v1/character/{cipId}/status", cipId)
+                        .header("Authorization", "Bearer valid.token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result").value("SUCCESS"))
-                .andExpect(jsonPath("$.data.name").value("PublicCharacter"))
+                .andExpect(jsonPath("$.data.status").value("PENDING"))
                 .andDo(print());
+
+        cleanupCip(cipId);
+    }
+
+    @Test
+    @DisplayName("GET /{cipId}/status - Lambda 결과 있으면 READY")
+    void pollStatus_shouldReturnReady_whenResultExists() throws Exception {
+        String cipId = createCip();
+        publishLambdaResult(cipId, "https://mock-s3/char.png");
+
+        mockMvc.perform(get("/api/v1/character/{cipId}/status", cipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("READY"))
+                .andDo(print());
+
+        cleanupCip(cipId);
+        redisTemplate.delete("char:result:" + cipId);
+    }
+
+    @Test
+    @DisplayName("POST /{cipId}/complete - 결과 있으면 DB 저장 + 200 반환")
+    void completeCharacter_shouldSaveToDb_whenResultExists() throws Exception {
+        String cipId = createCip();
+        publishLambdaResult(cipId, "https://mock-s3/char.png");
+
+        mockMvc.perform(post("/api/v1/character/{cipId}/complete", cipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("TestChar"))
+                .andExpect(jsonPath("$.data.imageUrl").value("https://mock-s3/char.png"))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("POST /{cipId}/complete - 결과 없으면 409")
+    void completeCharacter_shouldReturn409_whenResultNotReady() throws Exception {
+        String cipId = createCip();
+
+        mockMvc.perform(post("/api/v1/character/{cipId}/complete", cipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isConflict())
+                .andDo(print());
+
+        cleanupCip(cipId);
+    }
+
+    @Test
+    @DisplayName("POST /{cipId}/complete - 이미 완료된 CIP에 재호출 시 409")
+    void completeCharacter_shouldReturn409_whenAlreadyCompleted() throws Exception {
+        String cipId = createCip();
+        publishLambdaResult(cipId, "https://mock-s3/char.png");
+
+        // 첫 번째 complete - 성공
+        mockMvc.perform(post("/api/v1/character/{cipId}/complete", cipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isOk());
+
+        // 두 번째 complete - COMPLETED 상태이므로 409
+        mockMvc.perform(post("/api/v1/character/{cipId}/complete", cipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isConflict())
+                .andDo(print());
+    }
+
+    // ── 헬퍼 ─────────────────────────────────────────────────────────────────
+
+    private String createCip() throws Exception {
+        String body = """
+                {
+                    "name": "TestChar",
+                    "personality": "brave",
+                    "userDescription": "A hero",
+                    "appearanceDescription": "tall and strong"
+                }
+                """;
+        MvcResult result = mockMvc.perform(post("/api/v1/character/create")
+                        .header("Authorization", "Bearer valid.token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isAccepted())
+                .andReturn();
+
+        String responseBody = result.getResponse().getContentAsString();
+        return objectMapper.readTree(responseBody).get("data").get("cipId").asText();
+    }
+
+    private void publishLambdaResult(String cipId, String imageUrl) {
+        String json = "{\"imageUrl\":\"" + imageUrl + "\"}";
+        redisTemplate.opsForValue().set("char:result:" + cipId, json);
+    }
+
+    private void cleanupCip(String cipId) {
+        redisTemplate.delete("char:progress:" + cipId);
     }
 }

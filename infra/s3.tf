@@ -17,19 +17,13 @@ resource "aws_s3_bucket_versioning" "lambda-artifacts" {
   }
 }
 
-data "archive_file" "lambda" {
-  type        = "zip"
-  source_file = "${path.module}/../lambda/handler.py"
-  output_path = "${path.module}/lambda.zip"
-}
-
+# 코드 업로드는 GitHub Actions 워크플로우 전담 — Terraform은 오브젝트 존재만 관리
 resource "aws_s3_object" "lambda" {
   bucket = aws_s3_bucket.lambda-artifacts.id
   key    = "bip-generator.zip"
-  source = data.archive_file.lambda.output_path
-  etag   = data.archive_file.lambda.output_md5
+  source = "/dev/null" # placeholder — ignore_changes = all로 실제 업로드 없음
 
   lifecycle {
-    ignore_changes = [etag]
+    ignore_changes = all
   }
 }
