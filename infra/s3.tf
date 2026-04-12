@@ -17,19 +17,3 @@ resource "aws_s3_bucket_versioning" "lambda-artifacts" {
   }
 }
 
-data "archive_file" "lambda" {
-  type        = "zip"
-  source_file = "${path.module}/../ai/lambda/handler.py"
-  output_path = "${path.module}/lambda.zip"
-}
-
-resource "aws_s3_object" "lambda" {
-  bucket = aws_s3_bucket.lambda-artifacts.id
-  key    = "bip-generator.zip"
-  source = data.archive_file.lambda.output_path
-  etag   = data.archive_file.lambda.output_md5
-
-  lifecycle {
-    ignore_changes = [etag]
-  }
-}
