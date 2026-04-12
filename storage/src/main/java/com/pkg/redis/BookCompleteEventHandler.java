@@ -2,7 +2,6 @@ package com.pkg.redis;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -19,7 +18,6 @@ public class BookCompleteEventHandler {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Async(value = "transaction-event")
     public void handle(BookCompleteEvent event) {
         try {
             bookInProgressRepositoryAdapter.markAsCompleted(event.bookInProgressId());
