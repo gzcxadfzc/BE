@@ -16,19 +16,22 @@ public class BookProgressService {
     private final BookInProgressLockExecutor lockExecutor;
     private final BookPageQueuePublisher queuePublisher;
     private final BookPageResultRepository bookPageResultRepository;
+    private final BookInProgressPendingGuard pendingGuard;
 
     public BookProgressService(
             BookCharacterRepository bookCharacterRepository,
             BookInProgressRepository bookInProgressRepository,
             BookInProgressLockExecutor lockExecutor,
             BookPageQueuePublisher queuePublisher,
-            BookPageResultRepository bookPageResultRepository
+            BookPageResultRepository bookPageResultRepository,
+            BookInProgressPendingGuard pendingGuard
     ) {
         this.bookCharacterRepository = bookCharacterRepository;
         this.bookInProgressRepository = bookInProgressRepository;
         this.lockExecutor = lockExecutor;
         this.queuePublisher = queuePublisher;
         this.bookPageResultRepository = bookPageResultRepository;
+        this.pendingGuard = pendingGuard;
     }
 
     public BookPageAccepted initBook(BookInitCommand command) {
@@ -51,11 +54,15 @@ public class BookProgressService {
                 throw BookProgressException.notFound(command.bipId());
             }
             if (bip.status() == BookInProgress.Status.PENDING) {
-                throw BookProgressException.alreadyPending(command.bipId());
+                if (pendingGuard.exists(bip.id())) {
+                    throw BookProgressException.alreadyPending(command.bipId());
+                }
+                // guard 없음 → stale PENDING (Lambda 하드 크래시 등) → IN_PROGRESS 취급, 진행
             }
             validateOwner(bip, command.currentUser());
             int nextPageIndex = bip.previousPages().size();
             bookInProgressRepository.save(bip.markAsPending());
+            pendingGuard.set(bip.id());
             queuePublisher.publish(new BookPageQueueMessage(
                     bip.id(), nextPageIndex, command.userInput(),
                     bip.character().name(), bip.character().description(), bip.backgroundInfo()));

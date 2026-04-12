@@ -8,6 +8,7 @@ import com.pkg.authentication.token.AccessToken;
 import com.pkg.authentication.token.AccessTokenAuthenticator;
 import com.pkg.authentication.token.MemberPrincipal;
 import com.pkg.domain.book.BookPage;
+import com.pkg.domain.bookprogress.BookInProgress;
 import com.pkg.domain.bookprogress.BookInProgressRepository;
 import com.pkg.domain.bookprogress.BookPageQueuePublisher;
 import com.pkg.domain.image.ImageRepository;
@@ -183,6 +184,24 @@ class BookProgressControllerIntegrationTest {
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.result").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.bipId").value(bipId))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/book/progress/{id} - guard 없는 stale PENDING은 자동 복구 후 202")
+    void generatePage_shouldRecover_whenStalePending() throws Exception {
+        String bipId = initBookAndGetBipId();
+
+        // guard 없이 PENDING 상태 강제 설정 (Lambda 하드 크래시 시뮬레이션)
+        forcePendingWithoutGuard(bipId);
+
+        BookProgressRequest pageRequest = new BookProgressRequest("Continue story");
+
+        mockMvc.perform(post("/api/v1/book/progress/{id}", bipId)
+                        .header("Authorization", "Bearer valid.token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(pageRequest)))
+                .andExpect(status().isAccepted())
                 .andDo(print());
     }
 
@@ -447,6 +466,13 @@ class BookProgressControllerIntegrationTest {
     private void addPageToBip(String bipId) {
         BookPage page = new BookPage("Once upon a time...", "https://example.com/page1.jpg", 0);
         bookInProgressRepository.addPageTo(bipId, page);
+    }
+
+    /** Lambda 하드 크래시 시뮬레이션: guard 없이 PENDING 상태만 강제 설정 */
+    private void forcePendingWithoutGuard(String bipId) {
+        BookInProgress bip = bookInProgressRepository.retrieveById(bipId);
+        bookInProgressRepository.save(bip.markAsPending());
+        // guard는 설정하지 않음 → stale PENDING
     }
 
     /** Lambda가 bip:result:{bipId}에 결과를 저장한 상황을 시뮬레이션 */
