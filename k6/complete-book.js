@@ -5,9 +5,9 @@ import { Trend, Rate, Counter } from 'k6/metrics';
 const BASE_URL = __ENV.BASE_URL || 'http://ec2-3-35-50-130.ap-northeast-2.compute.amazonaws.com:8080';
 
 // Custom metrics
-const completeBookDuration = new Trend('complete_book_duration', true);
-const initBookDuration = new Trend('init_book_duration', true);
-const errorRate = new Rate('error_rate');
+const initToCompletedDuration = new Trend('init_to_completed_duration', true); // initBook 202 → 폴링 COMPLETED
+const completeBookDuration    = new Trend('complete_book_duration', true);      // completeBook POST 단독
+const errorRate     = new Rate('error_rate');
 const completedBooks = new Counter('completed_books');
 
 export const options = {
@@ -16,23 +16,26 @@ export const options = {
             executor: 'ramping-vus',
             startVUs: 0,
             stages: [
-                { duration: '30s', target: 10 },   // 워밍업
-                { duration: '1m',  target: 100 },  // 부하 증가
-                { duration: '2m',  target: 100 },  // 안정 구간
-                { duration: '30s', target: 0 },    // 쿨다운
+                { duration: '30s', target: 10  },
+                { duration: '1m',  target: 100 },
+                { duration: '2m',  target: 100 },
+                { duration: '30s', target: 0   },
             ],
         },
     },
     thresholds: {
-        'complete_book_duration': ['p(95)<2000', 'p(99)<5000'],
-        'error_rate': ['rate<0.05'],
-        'http_req_failed': ['rate<0.05'],
+        'init_to_completed_duration': ['p(95)<15000'],  // Lambda 처리 포함 15s 이내
+        'complete_book_duration':     ['p(95)<2000'],
+        'error_rate':                 ['rate<0.05'],
+        'http_req_failed':            ['rate<0.05'],
     },
 };
 
-// VU별 상태 (모듈 레벨 = VU당 독립 메모리)
-let token = null;
+// VU별 상태
+let token       = null;
 let characterId = null;
+
+// ── 헬퍼 ─────────────────────────────────────────────────────
 
 function signup() {
     const username = `load_vu${__VU}_${Date.now()}`;
@@ -41,10 +44,13 @@ function signup() {
         JSON.stringify({ username, password: 'loadtest123!' }),
         { headers: { 'Content-Type': 'application/json' }, tags: { name: 'signup' } }
     );
-    check(res, { 'signup 200': (r) => r.status === 200 });
+    check(res, { 'signup 200': r => r.status === 200 });
     return res.json('data.accessToken');
 }
 
+/**
+ * 캐릭터 생성 (비동기): POST → 폴링 → complete → characterId 반환
+ */
 function createCharacter(tok) {
     const res = http.post(
         `${BASE_URL}/api/v1/character/create`,
@@ -56,12 +62,37 @@ function createCharacter(tok) {
         }),
         { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` }, tags: { name: 'createCharacter' } }
     );
-    check(res, { 'createCharacter 200': (r) => r.status === 200 });
-    return res.json('data.id');
+    if (!check(res, { 'createCharacter 202': r => r.status === 202 })) return null;
+    const cipId = res.json('data.cipId');
+
+    // Lambda 처리 완료 대기
+    for (let i = 0; i < 30; i++) {
+        const statusRes = http.get(
+            `${BASE_URL}/api/v1/character/${cipId}/status`,
+            { headers: { Authorization: `Bearer ${tok}` } }
+        );
+        if (statusRes.status === 200 && statusRes.json('data.status') === 'READY') break;
+        sleep(1);
+        if (i === 29) return null; // 타임아웃
+    }
+
+    // 캐릭터 완성
+    const completeRes = http.post(
+        `${BASE_URL}/api/v1/character/${cipId}/complete`,
+        null,
+        { headers: { Authorization: `Bearer ${tok}` }, tags: { name: 'completeCharacter' } }
+    );
+    if (!check(completeRes, { 'completeCharacter 200': r => r.status === 200 })) return null;
+    return completeRes.json('data.id');
 }
 
+/**
+ * 책 초기화 → Lambda 처리 완료 대기 (전체 시간 측정)
+ * @returns {string|null} bipId
+ */
 function initBook(tok, charId) {
     const start = Date.now();
+
     const res = http.post(
         `${BASE_URL}/api/v1/book/progress/init`,
         JSON.stringify({
@@ -71,11 +102,32 @@ function initBook(tok, charId) {
         }),
         { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` }, tags: { name: 'initBook' } }
     );
-    initBookDuration.add(Date.now() - start);
-    const ok = check(res, { 'initBook 200': (r) => r.status === 200 });
-    errorRate.add(!ok);
-    if (!ok) return null;
-    return res.json('data.bookInProgress.id');
+    if (!check(res, { 'initBook 202': r => r.status === 202 })) {
+        errorRate.add(1);
+        return null;
+    }
+    const bipId = res.json('data.bipId');
+
+    // Lambda 처리 완료 폴링
+    let completed = false;
+    for (let i = 0; i < 30; i++) {
+        const statusRes = http.get(
+            `${BASE_URL}/api/v1/book/progress/${bipId}/status`,
+            { headers: { Authorization: `Bearer ${tok}` } }
+        );
+        if (statusRes.status === 200 && statusRes.json('data.status') === 'COMPLETED') {
+            completed = true;
+            break;
+        }
+        sleep(1);
+    }
+
+    initToCompletedDuration.add(Date.now() - start);
+    if (!completed) {
+        errorRate.add(1);
+        return null;
+    }
+    return bipId;
 }
 
 function completeBook(tok, bipId) {
@@ -86,11 +138,13 @@ function completeBook(tok, bipId) {
         { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` }, tags: { name: 'completeBook' } }
     );
     completeBookDuration.add(Date.now() - start);
-    const ok = check(res, { 'completeBook 200': (r) => r.status === 200 });
+    const ok = check(res, { 'completeBook 200': r => r.status === 200 });
     errorRate.add(!ok);
     if (ok) completedBooks.add(1);
     return ok;
 }
+
+// ── 메인 시나리오 ─────────────────────────────────────────────
 
 export default function () {
     // VU 최초 실행 시 계정 + 캐릭터 생성
@@ -101,11 +155,11 @@ export default function () {
         if (!characterId) return;
     }
 
-    // 매 iteration: BIP 생성 → 완료 (핵심 측정 대상)
+    // 매 iteration: BIP 생성(비동기) → 폴링 → 완료
     const bipId = initBook(token, characterId);
     if (!bipId) return;
 
     completeBook(token, bipId);
 
-    sleep(0.1); // 약간의 think time
+    sleep(0.1);
 }

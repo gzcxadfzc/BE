@@ -5,14 +5,14 @@ import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
 
 const BASE_URL = __ENV.BASE_URL || 'http://ec2-3-35-50-130.ap-northeast-2.compute.amazonaws.com:8080';
 
-const boardAllDuration  = new Trend('board_all_duration',  true);
+const boardAllDuration   = new Trend('board_all_duration',   true);
 const bookDetailDuration = new Trend('book_detail_duration', true);
-const myBooksDuration   = new Trend('my_books_duration',   true);
-const myCharsDuration   = new Trend('my_chars_duration',   true);
+const myBooksDuration    = new Trend('my_books_duration',    true);
+const myCharsDuration    = new Trend('my_chars_duration',    true);
 const errorRate = new Rate('error_rate');
 
-// book_setup: 25 VUs × 45s ≈ 10,000권 생성
-// ramp_up   : 55s 후 시작, 읽기 부하 테스트
+// book_setup: 25 VUs × 45s でデータ生成
+// ramp_up   : 55s 후 읽기 부하 테스트
 export const options = {
     scenarios: {
         book_setup: {
@@ -27,24 +27,58 @@ export const options = {
             startTime: '55s',
             startVUs: 0,
             stages: [
-                { duration: '30s', target: 10  },  // 워밍업
-                { duration: '1m',  target: 160 },  // 부하 증가
-                { duration: '2m',  target: 160 },  // 안정 구간
-                { duration: '30s', target: 0   },  // 쿨다운
+                { duration: '30s', target: 10  },
+                { duration: '1m',  target: 160 },
+                { duration: '2m',  target: 160 },
+                { duration: '30s', target: 0   },
             ],
             exec: 'readBooks',
         },
     },
     thresholds: {
-        'board_all_duration':              ['p(95)<500'],
-        'book_detail_duration':            ['p(95)<300'],
-        'my_books_duration':               ['p(95)<300'],
-        'error_rate':                      ['rate<0.05'],
+        'board_all_duration':                ['p(95)<500'],
+        'book_detail_duration':              ['p(95)<300'],
+        'my_books_duration':                 ['p(95)<300'],
+        'error_rate':                        ['rate<0.05'],
         'http_req_failed{scenario:ramp_up}': ['rate<0.05'],
     },
 };
 
-// ── book_setup VU 상태 (VU당 독립) ───────────────────────
+// ── 공통 폴링 헬퍼 ────────────────────────────────────────────
+
+/**
+ * 캐릭터 생성 완료 대기 (char:result:{cipId} 존재 여부)
+ * @returns {boolean} READY 상태 도달 여부
+ */
+function pollCharacterReady(tok, cipId, maxAttempts = 30, intervalSec = 1) {
+    for (let i = 0; i < maxAttempts; i++) {
+        const res = http.get(
+            `${BASE_URL}/api/v1/character/${cipId}/status`,
+            { headers: { Authorization: `Bearer ${tok}` } }
+        );
+        if (res.status === 200 && res.json('data.status') === 'READY') return true;
+        sleep(intervalSec);
+    }
+    return false;
+}
+
+/**
+ * 페이지 생성 완료 대기 (bip:result:{bipId} 존재 여부)
+ * @returns {boolean} COMPLETED 상태 도달 여부
+ */
+function pollPageCompleted(tok, bipId, maxAttempts = 30, intervalSec = 1) {
+    for (let i = 0; i < maxAttempts; i++) {
+        const res = http.get(
+            `${BASE_URL}/api/v1/book/progress/${bipId}/status`,
+            { headers: { Authorization: `Bearer ${tok}` } }
+        );
+        if (res.status === 200 && res.json('data.status') === 'COMPLETED') return true;
+        sleep(intervalSec);
+    }
+    return false;
+}
+
+// ── book_setup VU 상태 ────────────────────────────────────────
 
 let setupToken  = null;
 let setupCharId = null;
@@ -61,6 +95,7 @@ export function createBooks() {
         if (signupRes.status !== 200) return;
         setupToken = signupRes.json('data.accessToken');
 
+        // 1. 캐릭터 생성 요청 → 202 + cipId
         const charRes = http.post(
             `${BASE_URL}/api/v1/character/create`,
             JSON.stringify({
@@ -71,18 +106,34 @@ export function createBooks() {
             }),
             { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${setupToken}` } }
         );
-        if (charRes.status !== 200) return;
-        setupCharId = charRes.json('data.id');
+        if (charRes.status !== 202) return;
+        const cipId = charRes.json('data.cipId');
+
+        // 2. Lambda 처리 완료 대기
+        if (!pollCharacterReady(setupToken, cipId)) return;
+
+        // 3. 캐릭터 완성 → DB 저장 → characterId 획득
+        const completeCharRes = http.post(
+            `${BASE_URL}/api/v1/character/${cipId}/complete`,
+            null,
+            { headers: { Authorization: `Bearer ${setupToken}` } }
+        );
+        if (completeCharRes.status !== 200) return;
+        setupCharId = completeCharRes.json('data.id');
     }
 
-    // 매 iteration: 책 1권 생성
+    if (!setupCharId) return;
+
+    // 매 iteration: 책 1권 생성 (init → 폴링 → complete)
     const initRes = http.post(
         `${BASE_URL}/api/v1/book/progress/init`,
         JSON.stringify({ characterId: setupCharId, backgroundInfo: '마법의 숲', userInput: '설정용 책' }),
         { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${setupToken}` } }
     );
-    if (initRes.status !== 200) return;
-    const bipId = initRes.json('data.bookInProgress.id');
+    if (initRes.status !== 202) return;
+    const bipId = initRes.json('data.bipId');
+
+    if (!pollPageCompleted(setupToken, bipId)) return;
 
     http.post(
         `${BASE_URL}/api/v1/book/progress/${bipId}/complete`,
@@ -91,13 +142,12 @@ export function createBooks() {
     );
 }
 
-// ── ramp_up VU 상태 (VU당 독립) ─────────────────────────
+// ── ramp_up VU 상태 ───────────────────────────────────────────
 
-let readToken  = null;
+let readToken   = null;
 let readBookIds = null;
 
 export function readBooks() {
-    // VU 최초 실행 시 유저 생성
     if (readToken === null) {
         const username = `read_vu${__VU}_${Date.now()}`;
         const signupRes = http.post(
@@ -109,7 +159,6 @@ export function readBooks() {
         readToken = signupRes.json('data.accessToken');
     }
 
-    // bookId 목록 최초 1회 조회 (book_setup 완료 후 충분한 데이터 존재)
     if (readBookIds === null) {
         const boardRes = http.get(
             `${BASE_URL}/api/v1/book/board/all?index=0&size=100&sort=createdAtDesc`
@@ -130,7 +179,7 @@ export function readBooks() {
     sleep(0.1);
 }
 
-// ── 조회 함수들 ──────────────────────────────────────────
+// ── 조회 함수들 ───────────────────────────────────────────────
 
 function getBoardAll() {
     const start = Date.now();
@@ -176,14 +225,13 @@ function getMyCharacters(tok) {
     errorRate.add(!ok);
 }
 
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 
 export function handleSummary(data) {
     const now = new Date();
     const timestamp = now.toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '');
-    const filename = `output_${timestamp}.json`;
     return {
-        [filename]: JSON.stringify(data, null, 2),
+        [`output_${timestamp}.json`]: JSON.stringify(data, null, 2),
         stdout: textSummary(data, { indent: ' ', enableColors: true }),
     };
 }
