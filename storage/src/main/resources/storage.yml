@@ -123,10 +123,9 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: create
+      ddl-auto: none
     properties:
       hibernate:
-        hbm2ddl.auto: create
         format_sql: false
         show_sql: false
   redis:
@@ -142,6 +141,10 @@ storage:
   s3:
     access-key: load-test-dummy
     secret-key: load-test-dummy
+
+sqs:
+  queue-url: ${SQS_QUEUE_URL}
+  region: ap-northeast-2
 
 ---
 

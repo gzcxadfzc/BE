@@ -2,11 +2,13 @@ package com.pkg.controller.book;
 
 import com.pkg.controller.common.ApiResponse;
 import com.pkg.controller.common.PageResponse;
+import com.pkg.controller.common.SliceResponse;
 import com.pkg.domain.book.Book;
 import com.pkg.domain.book.BookRetrieveQuery;
 import com.pkg.domain.book.BookService;
 import com.pkg.domain.book.BookThumbnail;
 import com.pkg.domain.common.PageResult;
+import com.pkg.domain.common.SliceResult;
 import com.pkg.domain.member.Actor;
 import com.pkg.support.Authenticated;
 import org.springframework.util.MultiValueMap;
@@ -35,6 +37,13 @@ public class BookController {
         BookRetrieveQuery domainQuery = BookQueryParamMapper.toDomainQuery(params);
         PageResult<BookThumbnail> result = bookService.retrieveBookThumbnails(domainQuery);
         return ApiResponse.success(PageResponse.from(result));
+    }
+
+    @GetMapping("/board/slice")
+    ApiResponse<SliceResponse<BookThumbnail>> getBookBySlice(@RequestParam MultiValueMap<String, String> params) {
+        BookRetrieveQuery domainQuery = BookQueryParamMapper.toDomainQuery(params);
+        SliceResult<BookThumbnail> result = bookService.retrieveBookThumbnailsSlice(domainQuery);
+        return ApiResponse.success(SliceResponse.from(result));
     }
 
     @GetMapping("/my")

@@ -343,6 +343,89 @@ class BookControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("GET /api/v1/book/board/slice - 책 목록을 Slice로 조회할 수 있다")
+    void getBookBySlice_shouldReturnSliceResponse() throws Exception {
+        mockMvc.perform(get("/api/v1/book/board/slice")
+                        .param("index", "0")
+                        .param("size", "10")
+                        .param("sort", "createdAtDesc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.elements", hasSize(1)))
+                .andExpect(jsonPath("$.data.elements[0].bookId").value(testBookId))
+                .andExpect(jsonPath("$.data.elements[0].title").value("Alice's Adventure"))
+                .andExpect(jsonPath("$.data.elements[0].author").value("John Doe"))
+                .andExpect(jsonPath("$.data.index").value(0))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/book/board/slice - 다음 페이지가 있으면 hasNext가 true다")
+    void getBookBySlice_hasNextTrue() throws Exception {
+        // given - 책 2권 추가 (총 3권, size=2로 조회하면 hasNext=true)
+        CharacterJpaEntity character2 = CharacterJpaEntity.builder()
+                .memberId(testMemberId).name("Bob")
+                .appearanceKeywords("tall").personality("brave")
+                .userDescription("desc").imageUrl("https://example.com/bob.jpg")
+                .originImageUrl("https://example.com/bob-origin.jpg").build();
+        characterJpaRepository.save(character2);
+
+        bookJpaRepository.save(BookJpaEntity.builder()
+                .id("slice-book-2").userId(testMemberId).characterId(character2.getId())
+                .title("Book 2").author("Author 2")
+                .createdAt(LocalDateTime.of(2025, 2, 1, 10, 0))
+                .bookColor(1L).storyLength(3).coverImageUrl("https://example.com/c2.jpg").build());
+        bookJpaRepository.save(BookJpaEntity.builder()
+                .id("slice-book-3").userId(testMemberId).characterId(character2.getId())
+                .title("Book 3").author("Author 3")
+                .createdAt(LocalDateTime.of(2025, 3, 1, 10, 0))
+                .bookColor(1L).storyLength(3).coverImageUrl("https://example.com/c3.jpg").build());
+
+        // when & then
+        mockMvc.perform(get("/api/v1/book/board/slice")
+                        .param("index", "0")
+                        .param("size", "2")
+                        .param("sort", "createdAtDesc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.elements", hasSize(2)))
+                .andExpect(jsonPath("$.data.hasNext").value(true))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/book/board/slice - 마지막 페이지면 hasNext가 false다")
+    void getBookBySlice_hasNextFalse() throws Exception {
+        mockMvc.perform(get("/api/v1/book/board/slice")
+                        .param("index", "0")
+                        .param("size", "5")
+                        .param("sort", "createdAtDesc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/book/board/slice - 책이 없으면 빈 배열과 hasNext=false를 반환한다")
+    void getBookBySlice_emptyResult() throws Exception {
+        // given
+        pageJpaRepository.deleteAll();
+        bookJpaRepository.deleteAll();
+
+        // when & then
+        mockMvc.perform(get("/api/v1/book/board/slice")
+                        .param("index", "0")
+                        .param("size", "10")
+                        .param("sort", "createdAtDesc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.elements", hasSize(0)))
+                .andExpect(jsonPath("$.data.index").value(0))
+                .andExpect(jsonPath("$.data.hasNext").value(false))
+                .andDo(print());
+    }
+
+    @Test
     @DisplayName("GET /api/v1/book/board/{bookId} - 페이지가 없는 책도 조회할 수 있다")
     void getBookById_shouldReturnBook_whenBookHasNoPages() throws Exception {
         // given - 페이지가 없는 책 생성

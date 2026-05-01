@@ -6,6 +6,7 @@ import com.pkg.domain.book.BookRetrieveQuery;
 import com.pkg.domain.book.BookThumbnail;
 import com.pkg.domain.character.BookCharacter;
 import com.pkg.domain.common.PageResult;
+import com.pkg.domain.common.SliceResult;
 import com.pkg.domain.member.Actor;
 import com.pkg.domain.member.Role;
 import org.junit.jupiter.api.BeforeEach;
@@ -759,6 +760,146 @@ class BookRepositoryAdapterTest {
 
         // Then
         assertThat(thumbnails).isEmpty();
+    }
+
+    @Test
+    @DisplayName("retrieveThumbnailsSlice - 책 목록을 Slice로 조회할 수 있다")
+    void retrieveThumbnailsSlice_basic() {
+        // Given
+        BookRetrieveQuery query = new BookRetrieveQuery(0, 10, BookRetrieveQuery.SortOption.CREATED_AT_DESC);
+
+        // When
+        SliceResult<BookThumbnail> result = bookRepositoryAdapter.retrieveThumbnailsSlice(query);
+
+        // Then
+        assertThat(result.getElements()).hasSize(1);
+        assertThat(result.getIndex()).isEqualTo(0);
+        assertThat(result.isHasNext()).isFalse();
+        assertThat(result.getElements().get(0).bookId()).isEqualTo("book-123");
+    }
+
+    @Test
+    @DisplayName("retrieveThumbnailsSlice - 다음 페이지가 있으면 hasNext가 true다")
+    void retrieveThumbnailsSlice_hasNextTrue() {
+        // Given - 책 3권 추가 (총 4권)
+        for (int i = 1; i <= 3; i++) {
+            CharacterJpaEntity character = createCharacter(
+                    testMemberId, "Character " + i, "keywords", "personality", "desc",
+                    "http://example.com/char" + i + ".jpg", "http://example.com/origin" + i + ".jpg"
+            );
+            characterJpaRepository.save(character);
+            bookJpaRepository.save(BookJpaEntity.builder()
+                    .id("book-extra-" + i)
+                    .userId(testMemberId)
+                    .characterId(character.getId())
+                    .title("Book " + i)
+                    .author("Author " + i)
+                    .createdAt(LocalDateTime.now().plusDays(i))
+                    .bookColor(1L).storyLength(3)
+                    .coverImageUrl("http://example.com/cover" + i + ".jpg")
+                    .build());
+        }
+
+        BookRetrieveQuery query = new BookRetrieveQuery(0, 2, BookRetrieveQuery.SortOption.CREATED_AT_DESC);
+
+        // When
+        SliceResult<BookThumbnail> result = bookRepositoryAdapter.retrieveThumbnailsSlice(query);
+
+        // Then
+        assertThat(result.getElements()).hasSize(2);
+        assertThat(result.isHasNext()).isTrue();
+    }
+
+    @Test
+    @DisplayName("retrieveThumbnailsSlice - 마지막 페이지면 hasNext가 false다")
+    void retrieveThumbnailsSlice_hasNextFalse() {
+        // Given - 책 1권만 존재
+        BookRetrieveQuery query = new BookRetrieveQuery(0, 2, BookRetrieveQuery.SortOption.CREATED_AT_DESC);
+
+        // When
+        SliceResult<BookThumbnail> result = bookRepositoryAdapter.retrieveThumbnailsSlice(query);
+
+        // Then
+        assertThat(result.getElements()).hasSize(1);
+        assertThat(result.isHasNext()).isFalse();
+    }
+
+    @Test
+    @DisplayName("retrieveThumbnailsSlice - created_at DESC 정렬이 적용된다")
+    void retrieveThumbnailsSlice_sortByCreatedAtDesc() {
+        // Given - 2권 추가
+        CharacterJpaEntity character2 = createCharacter(
+                testMemberId, "Character 2", "k", "p", "d",
+                "http://example.com/c2.jpg", "http://example.com/o2.jpg"
+        );
+        characterJpaRepository.save(character2);
+        bookJpaRepository.save(BookJpaEntity.builder()
+                .id("book-newer")
+                .userId(testMemberId)
+                .characterId(character2.getId())
+                .title("Newer Book")
+                .author("Author 2")
+                .createdAt(LocalDateTime.now().plusDays(1))
+                .bookColor(1L).storyLength(3)
+                .coverImageUrl("http://example.com/newer.jpg")
+                .build());
+
+        BookRetrieveQuery query = new BookRetrieveQuery(0, 10, BookRetrieveQuery.SortOption.CREATED_AT_DESC);
+
+        // When
+        SliceResult<BookThumbnail> result = bookRepositoryAdapter.retrieveThumbnailsSlice(query);
+
+        // Then - 최신 책이 먼저
+        assertThat(result.getElements()).hasSize(2);
+        assertThat(result.getElements().get(0).bookId()).isEqualTo("book-newer");
+        assertThat(result.getElements().get(1).bookId()).isEqualTo("book-123");
+    }
+
+    @Test
+    @DisplayName("retrieveThumbnailsSlice - 책이 없으면 빈 결과를 반환한다")
+    void retrieveThumbnailsSlice_empty() {
+        // Given
+        pageJpaRepository.deleteAll();
+        bookJpaRepository.deleteAll();
+        BookRetrieveQuery query = new BookRetrieveQuery(0, 10, BookRetrieveQuery.SortOption.CREATED_AT_DESC);
+
+        // When
+        SliceResult<BookThumbnail> result = bookRepositoryAdapter.retrieveThumbnailsSlice(query);
+
+        // Then
+        assertThat(result.getElements()).isEmpty();
+        assertThat(result.isHasNext()).isFalse();
+    }
+
+    @Test
+    @DisplayName("retrieveThumbnailsSlice - 두 번째 페이지를 조회할 수 있다")
+    void retrieveThumbnailsSlice_secondPage() {
+        // Given - 책 4권 추가 (총 5권)
+        for (int i = 1; i <= 4; i++) {
+            CharacterJpaEntity character = createCharacter(
+                    testMemberId, "Character " + i, "k", "p", "d",
+                    "http://example.com/c" + i + ".jpg", "http://example.com/o" + i + ".jpg"
+            );
+            characterJpaRepository.save(character);
+            bookJpaRepository.save(BookJpaEntity.builder()
+                    .id("book-p" + i)
+                    .userId(testMemberId)
+                    .characterId(character.getId())
+                    .title("Book " + i)
+                    .author("Author " + i)
+                    .createdAt(LocalDateTime.now().plusDays(i))
+                    .bookColor(1L).storyLength(3)
+                    .coverImageUrl("http://example.com/cover" + i + ".jpg")
+                    .build());
+        }
+
+        // When - 두 번째 페이지 (index=1, size=2)
+        BookRetrieveQuery query = new BookRetrieveQuery(1, 2, BookRetrieveQuery.SortOption.CREATED_AT_DESC);
+        SliceResult<BookThumbnail> result = bookRepositoryAdapter.retrieveThumbnailsSlice(query);
+
+        // Then
+        assertThat(result.getElements()).hasSize(2);
+        assertThat(result.getIndex()).isEqualTo(1);
     }
 
     private MemberJpaEntity createMember(String username, String password) {

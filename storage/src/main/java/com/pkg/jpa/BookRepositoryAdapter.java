@@ -3,14 +3,15 @@ package com.pkg.jpa;
 import com.pkg.domain.book.*;
 import com.pkg.domain.bookprogress.BookInProgress;
 import com.pkg.domain.character.BookCharacter;
-import com.pkg.domain.character.BookCharacterRepository;
 import com.pkg.domain.common.PageInfo;
 import com.pkg.domain.common.PageResult;
+import com.pkg.domain.common.SliceResult;
 import com.pkg.domain.member.Actor;
 import com.pkg.redis.BookCompleteEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,23 +25,20 @@ public class BookRepositoryAdapter implements BookRepository {
 
     private final BookJpaRepository bookJpaRepository;
     private final BookPageJpaRepository pageJpaRepository;
-    private final BookCharacterRepository bookCharacterRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     public BookRepositoryAdapter(
             BookJpaRepository bookJpaRepository,
             BookPageJpaRepository pageJpaRepository,
-            ApplicationEventPublisher eventPublisher,
-            BookCharacterRepository bookCharacterRepository) {
+            ApplicationEventPublisher eventPublisher) {
         this.bookJpaRepository = bookJpaRepository;
         this.pageJpaRepository = pageJpaRepository;
-        this.bookCharacterRepository = bookCharacterRepository;
         this.eventPublisher = eventPublisher;
     }
 
     @Transactional
     @Override
-    public Book saveFrom(BookInProgress bookInProgress, Function<BookInProgress, Book> converter) {
+    public Book saveFrom(BookInProgress bookInProgress, BookCharacter character, Function<BookInProgress, Book> converter) {
         eventPublisher.publishEvent(new BookCompleteEvent(bookInProgress.id()));
         Book book = converter.apply(bookInProgress);
         BookJpaEntity bookEntity = bookJpaRepository.save(BookJpaEntity.fromBook(book));
@@ -55,7 +53,7 @@ public class BookRepositoryAdapter implements BookRepository {
                 pageEntities.stream().map(BookPageJpaEntity::toBookPage).toList(),
                 bookEntity.getTitle(),
                 bookEntity.getAuthor(),
-                bookCharacterRepository.retrieveById(bookEntity.getCharacterId())
+                character
         );
     }
 
@@ -139,5 +137,15 @@ public class BookRepositoryAdapter implements BookRepository {
                         entityPage.getTotalElements(),
                         entityPage.isLast()
                 ));
+    }
+
+    @Override
+    public SliceResult<BookThumbnail> retrieveThumbnailsSlice(BookRetrieveQuery query) {
+        Pageable pageable = BookRetrieveQueryMapper.toPageable(query);
+        Slice<BookJpaEntity> slice = bookJpaRepository.findSliceBy(pageable);
+        List<BookThumbnail> thumbnails = slice.getContent().stream()
+                .map(BookJpaEntity::toBookThumbnail)
+                .toList();
+        return new SliceResult<>(thumbnails, slice.getNumber(), slice.hasNext());
     }
 }
