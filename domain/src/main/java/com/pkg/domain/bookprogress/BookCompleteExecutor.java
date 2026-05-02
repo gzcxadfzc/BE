@@ -32,19 +32,13 @@ public class BookCompleteExecutor {
             if (target.status() == BookInProgress.Status.PENDING) {
                 throw BookProgressException.alreadyPending(command.bookInProgressId());
             }
-            return bookRepository.saveFrom(target, bip -> {
-                validateNotNull(bip.character());
-                return Book.completeFromCommand(bip, command);
-            });
+            BookCharacter character = bookCharacterRepository.retrieveById(target.character().id());
+            if (character == null) {
+                throw BookProgressException.notFound("bookCharacter:");
+            }
+            return bookRepository.saveFrom(target, character,
+                    bip -> Book.completeFromCommand(bip, command));
         });
-    }
-
-    private BookCharacter validateNotNull(BookCharacter character) {
-        BookCharacter bookCharacter = bookCharacterRepository.retrieveById(character.id());
-        if(bookCharacter == null) {
-            throw BookProgressException.notFound("bookCharacter:");
-        }
-        return bookCharacter;
     }
 
     private BookInProgress getBookInProgress(CompleteBookCommand command) {

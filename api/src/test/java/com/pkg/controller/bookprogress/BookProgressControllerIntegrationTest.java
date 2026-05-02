@@ -426,7 +426,7 @@ class BookProgressControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/book/progress/{id}/status - Lambda 완료 시 COMPLETED + 페이지 반환")
+    @DisplayName("GET /api/v1/book/progress/{id}/status - Lambda 완료 시 COMPLETED + 페이지 데이터 반환")
     void pollPageStatus_shouldReturnCompleted_whenResultExists() throws Exception {
         String bipId = initBookAndGetBipId();
         publishLambdaResult(bipId, 0);
@@ -443,8 +443,8 @@ class BookProgressControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/book/progress/{id}/status - 폴링 후 result 키 삭제 (멱등성)")
-    void pollPageStatus_shouldDeleteResult_afterCompleted() throws Exception {
+    @DisplayName("GET /api/v1/book/progress/{id}/status - confirm 전 반복 폴링은 계속 COMPLETED 반환 (멱등)")
+    void pollPageStatus_shouldBeIdempotent_beforeConfirm() throws Exception {
         String bipId = initBookAndGetBipId();
         publishLambdaResult(bipId, 0);
 
@@ -453,10 +453,176 @@ class BookProgressControllerIntegrationTest {
                         .header("Authorization", "Bearer valid.token"))
                 .andExpect(jsonPath("$.data.status").value("COMPLETED"));
 
-        // 두 번째 폴링: result 키 삭제됐으므로 PENDING
+        // 두 번째 폴링: result가 아직 남아있으므로 여전히 COMPLETED
+        mockMvc.perform(get("/api/v1/book/progress/{id}/status", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/book/progress/{id}/status - BIP에 페이지가 추가되지 않음 (confirm 전)")
+    void pollPageStatus_shouldNotUpdateBip() throws Exception {
+        String bipId = initBookAndGetBipId();
+        publishLambdaResult(bipId, 0);
+
+        mockMvc.perform(get("/api/v1/book/progress/{id}/status", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"));
+
+        BookInProgress bip = bookInProgressRepository.retrieveById(bipId);
+        assertThat(bip.previousPages()).isEmpty();
+    }
+
+    // ==================== confirmPage ====================
+
+    @Test
+    @DisplayName("POST /api/v1/book/progress/{id}/confirm - 204 반환 및 BIP 페이지 추가")
+    void confirmPage_shouldReturn204AndUpdateBip() throws Exception {
+        String bipId = initBookAndGetBipId();
+        publishLambdaResult(bipId, 0);
+
+        mockMvc.perform(post("/api/v1/book/progress/{id}/confirm", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isNoContent())
+                .andDo(print());
+
+        BookInProgress bip = bookInProgressRepository.retrieveById(bipId);
+        assertThat(bip.previousPages()).hasSize(1);
+        assertThat(bip.previousPages().get(0).context()).isEqualTo("Alice found a magical door");
+        assertThat(bip.status()).isEqualTo(BookInProgress.Status.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/book/progress/{id}/confirm - confirm 후 result 키 삭제됨")
+    void confirmPage_shouldDeleteResult() throws Exception {
+        String bipId = initBookAndGetBipId();
+        publishLambdaResult(bipId, 0);
+
+        mockMvc.perform(post("/api/v1/book/progress/{id}/confirm", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isNoContent());
+
+        // confirm 후 poll → result 없으므로 PENDING
         mockMvc.perform(get("/api/v1/book/progress/{id}/status", bipId)
                         .header("Authorization", "Bearer valid.token"))
                 .andExpect(jsonPath("$.data.status").value("PENDING"))
+                .andDo(print());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/book/progress/{id}/confirm - confirm 후 PendingGuard 삭제됨")
+    void confirmPage_shouldDeletePendingGuard() throws Exception {
+        String bipId = initBookAndGetBipId();
+        forceSetPendingGuard(bipId);
+        publishLambdaResult(bipId, 0);
+
+        mockMvc.perform(post("/api/v1/book/progress/{id}/confirm", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isNoContent());
+
+        // guard 삭제됐으므로 다음 generateWithAi 호출 가능
+        Boolean guardExists = redisTemplate.hasKey("bip:pending-guard:" + bipId);
+        assertThat(guardExists).isFalse();
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/book/progress/{id}/confirm - result 없을 때 no-op (이미 confirm된 경우)")
+    void confirmPage_shouldBeNoOp_whenResultAlreadyDeleted() throws Exception {
+        String bipId = initBookAndGetBipId();
+        publishLambdaResult(bipId, 0);
+
+        // 첫 번째 confirm
+        mockMvc.perform(post("/api/v1/book/progress/{id}/confirm", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isNoContent());
+
+        // 두 번째 confirm: result 없으므로 no-op, 204 반환
+        mockMvc.perform(post("/api/v1/book/progress/{id}/confirm", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isNoContent())
+                .andDo(print());
+
+        // BIP 페이지는 1개 (중복 추가 없음)
+        BookInProgress bip = bookInProgressRepository.retrieveById(bipId);
+        assertThat(bip.previousPages()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/book/progress/{id}/confirm - 동시 confirm 시 페이지 중복 추가 없음")
+    void confirmPage_shouldNotDuplicatePage_whenConcurrentConfirm() throws Exception {
+        String bipId = initBookAndGetBipId();
+        publishLambdaResult(bipId, 0);
+
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch completeLatch = new CountDownLatch(2);
+
+        Runnable confirmTask = () -> {
+            try {
+                startLatch.await();
+                mockMvc.perform(post("/api/v1/book/progress/{id}/confirm", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                        .andReturn();
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                completeLatch.countDown();
+            }
+        };
+
+        new Thread(confirmTask).start();
+        new Thread(confirmTask).start();
+        startLatch.countDown();
+
+        assertThat(completeLatch.await(10, TimeUnit.SECONDS)).isTrue();
+
+        BookInProgress bip = bookInProgressRepository.retrieveById(bipId);
+        assertThat(bip.previousPages()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/book/progress/{id}/confirm - BIP 저장 후 result 삭제 실패 시나리오: 재시도해도 페이지 중복 없음")
+    void confirmPage_shouldNotDuplicatePage_whenResultDeleteFailedOnFirstAttempt() throws Exception {
+        String bipId = initBookAndGetBipId();
+        publishLambdaResult(bipId, 0);
+
+        // 첫 번째 confirm (정상 완료)
+        mockMvc.perform(post("/api/v1/book/progress/{id}/confirm", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isNoContent());
+
+        // result가 삭제 실패했다고 가정: 동일한 result를 다시 저장
+        publishLambdaResult(bipId, 0);
+
+        // 재시도 confirm: BIP에 이미 pageIndex=0이 있으므로 저장 스킵
+        mockMvc.perform(post("/api/v1/book/progress/{id}/confirm", bipId)
+                        .header("Authorization", "Bearer valid.token"))
+                .andExpect(status().isNoContent());
+
+        BookInProgress bip = bookInProgressRepository.retrieveById(bipId);
+        assertThat(bip.previousPages()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/book/progress/{id}/confirm - 다른 사용자 confirm 시 403")
+    void confirmPage_shouldReturn403_whenNotOwner() throws Exception {
+        String bipId = initBookAndGetBipId();
+        publishLambdaResult(bipId, 0);
+
+        MemberJpaEntity otherMember = MemberJpaEntity.builder()
+                .username("otheruser2")
+                .password("password123")
+                .role(RoleJpa.MEMBER)
+                .authProvider("local")
+                .build();
+        memberJpaRepository.save(otherMember);
+
+        when(mockTokenAuthenticator.authenticate(any(AccessToken.class)))
+                .thenReturn(new MemberPrincipal(otherMember.getId(), Role.MEMBER));
+
+        mockMvc.perform(post("/api/v1/book/progress/{id}/confirm", bipId)
+                        .header("Authorization", "Bearer other.token"))
+                .andExpect(status().isForbidden())
                 .andDo(print());
     }
 
@@ -473,6 +639,11 @@ class BookProgressControllerIntegrationTest {
         BookInProgress bip = bookInProgressRepository.retrieveById(bipId);
         bookInProgressRepository.save(bip.markAsPending());
         // guard는 설정하지 않음 → stale PENDING
+    }
+
+    /** PendingGuard 직접 설정 (confirm 후 삭제 여부 검증용) */
+    private void forceSetPendingGuard(String bipId) {
+        redisTemplate.opsForValue().set("bip:pending-guard:" + bipId, "1");
     }
 
     /** Lambda가 bip:result:{bipId}에 결과를 저장한 상황을 시뮬레이션 */

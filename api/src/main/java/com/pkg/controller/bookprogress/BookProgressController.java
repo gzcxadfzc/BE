@@ -81,7 +81,16 @@ public class BookProgressController {
             @Authenticated Actor currentUser,
             @PathVariable String id
     ) {
-        BookPagePollResult result = bookProgressService.pollPageResult(currentUser, id);
+        BookPagePollResult result = bookProgressService.pollPageStatus(currentUser, id);
         return ApiResponse.success(BookPageStatusResponse.from(result));
+    }
+
+    @PostMapping("/{id}/confirm")
+    public ResponseEntity<Void> confirmPage(
+            @Authenticated Actor currentUser,
+            @PathVariable String id
+    ) {
+        bookProgressService.confirmPage(currentUser, id);
+        return ResponseEntity.noContent().build();
     }
 }

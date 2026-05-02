@@ -79,17 +79,28 @@ public class BookProgressService {
         return found;
     }
 
-    public BookPagePollResult pollPageResult(Actor user, String bipId) {
-        BookInProgress bip = retrieveById(user, bipId);
+    public BookPagePollResult pollPageStatus(Actor user, String bipId) {
+        retrieveById(user, bipId);
         return bookPageResultRepository.find(bipId)
-                .map(page -> {
-                    BookInProgress updated = bip.addBookPage(
-                            new BookPage(page.context(), page.imageUrl(), page.pageIndex()));
-                    bookInProgressRepository.save(updated);
-                    bookPageResultRepository.delete(bipId);
-                    return BookPagePollResult.completed(page);
-                })
+                .map(BookPagePollResult::completed)
                 .orElseGet(BookPagePollResult::pending);
+    }
+
+    public void confirmPage(Actor user, String bipId) {
+        lockExecutor.updateWithLock(bipId, () -> {
+            BookInProgress bip = retrieveById(user, bipId);
+            bookPageResultRepository.find(bipId).ifPresent(page -> {
+                boolean alreadyAdded = bip.previousPages().stream()
+                        .anyMatch(p -> p.pageNumber() == page.pageIndex());
+                if (!alreadyAdded) {
+                    bookInProgressRepository.save(
+                            bip.addBookPage(new BookPage(page.context(), page.imageUrl(), page.pageIndex())));
+                }
+                bookPageResultRepository.delete(bipId);
+                pendingGuard.delete(bipId);
+            });
+            return null;
+        });
     }
 
     private void validateOwner(BookInProgress bookInProgress, Actor user) {
